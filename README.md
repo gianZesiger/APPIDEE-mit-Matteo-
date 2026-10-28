@@ -1,27 +1,69 @@
 # Weniger
 
-App für Erwachsene in der Schweiz, die eine Gewohnheit loswerden oder reduzieren wollen: Mate, Snus, Vape, Zigaretten, Energy, Kaffee, Alkohol oder etwas Eigenes. Live sehen, wie viel du sparst, gute Tage sammeln, Ausrutscher ohne Scham, Notfall-Knopf, Sparziele und ein Sport-Tagebuch. Ohne Konto. Design «Aare-Licht».
+Eine App für Erwachsene in der Schweiz, die eine Gewohnheit loswerden oder reduzieren wollen: Mate, Snus, Vape, Zigaretten, Energy, Kaffee, Alkohol oder etwas Eigenes. Du siehst live, wie viel du sparst, sammelst gute Tage, hast einen Notfall-Knopf für schwierige Momente, Sparziele und ein Sport-Tagebuch. Ohne Konto: Alle Einträge bleiben auf dem eigenen Handy.
 
-**Datenschutz:** Kein Login, keine Werbung, kein Tracking in der App. Alle Einträge bleiben im Browser auf deinem Gerät (IndexedDB). Mit «Sicherung herunterladen» nimmst du sie mit. Die Landingpage kann optional ohne Cookies gemessen werden (Standard: aus).
+Ein Projekt von Gian und Matteo aus Bern.
 
-## Starten
+## Code holen (einmal)
 
-Voraussetzung: Node.js 22 oder neuer.
+Voraussetzungen: [Git](https://git-scm.com), [Node.js 22 oder neuer](https://nodejs.org) und die [GitHub CLI](https://cli.github.com). Unter Windows in PowerShell:
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173 (Landingpage), /app/ ist die App
-npm test             # Unit-Tests (Vitest, Zeitzone Europe/Zurich)
-npm run test:e2e     # baut und prüft im Browser (Playwright)
-npm run build        # fertige Seite in dist/, danach Grössen-Budget (size-limit)
+winget install --id Git.Git -e
+winget install --id OpenJS.NodeJS.LTS -e
+winget install --id GitHub.cli -e
 ```
 
-Für Playwright einmalig den Browser holen: `npx playwright install chromium`.
+Danach das Terminal schliessen und neu öffnen, dann bei GitHub anmelden und den Code holen:
+
+```bash
+gh auth login
+git clone https://github.com/gianZesiger/APPIDEE-mit-Matteo-.git weniger
+cd weniger
+npm install
+npx playwright install chromium
+```
+
+## Starten und prüfen
+
+```bash
+npm run dev          # öffnet die Seite unter http://localhost:5173, die App unter /app/
+npm test             # Unit-Tests (Rechenlogik), dauert wenige Sekunden
+npm run test:e2e     # baut die Seite und prüft sie im Browser (Playwright)
+npm run build        # fertige Seite in dist/, danach Grössen-Budget
+```
 
 Beispieldaten zum Zeigen: `/app/?modus=beispiel`. Das Beispiel lebt nur im Arbeitsspeicher und überschreibt nie eigene Daten.
 
-## Seiten
+## So arbeiten wir zusammen
 
+- **`main` ist immer lauffähig.** Niemand arbeitet direkt auf `main`.
+- **Pro Aufgabe ein Branch**, benannt nach Person und Thema, z. B. `gian/notfall` oder `matteo/sparziele`.
+- **Vor dem Arbeiten immer die neuste Version holen.**
+- **Fertig? Pull Request öffnen.** Der andere schaut ihn an, die automatische Prüfung muss grün sein, dann wird er in `main` übernommen.
+
+Ein Arbeitstag im Terminal:
+
+```bash
+git switch main
+git pull                          # neuste Version holen
+git switch -c gian/neue-aufgabe   # eigenen Branch anlegen
+# ... arbeiten, npm test ...
+git add -A
+git commit -m "Kurz beschreiben, was sich geändert hat"
+git push -u origin gian/neue-aufgabe
+gh pr create --fill               # Pull Request öffnen
+```
+
+Wer mit Claude Code arbeitet, kann das auch einfach sagen: «Hol die neuste Version» und «Speichere und lade meine Änderungen hoch».
+
+Alle Texte der App stehen in `src/i18n/de-CH.ts`: Deutsch, Schweizer Rechtschreibung (nie das scharfe S, ein Test prüft das), du-Form, Beträge in CHF.
+
+## Veröffentlichen
+
+Das Repo ist öffentlich. Die App wird gratis über GitHub Pages veröffentlicht: Nach jedem Push auf `main` baut eine GitHub Action die Seite neu (wird eingerichtet). Wer lieber Cloudflare Pages oder Netlify nimmt: Build-Befehl `npm run build`, Ausgabeordner `dist`, Node 22 (siehe unten).
+
+## Seiten
 | Adresse | Inhalt |
 | --- | --- |
 | `/` | Landingpage mit Live-Rechner, vorgerendert |
@@ -31,7 +73,7 @@ Beispieldaten zum Zeigen: `/app/?modus=beispiel`. Das Beispiel lebt nur im Arbei
 
 Alle Texte stehen in `src/i18n/de-CH.ts` (Schweizer Schreibweise ohne scharfes S; ein Test prüft das).
 
-## Online stellen
+## Hosting-Details
 
 Der Build schreibt alles, was der Hoster braucht, nach `dist/`, auch `_headers` mit Content-Security-Policy (`default-src 'self'`), `nosniff`, Referrer- und Permissions-Policy sowie Cache-Regeln (gehashte Dateien für immer, HTML, Manifest und Service Worker nie aus dem Cache).
 
