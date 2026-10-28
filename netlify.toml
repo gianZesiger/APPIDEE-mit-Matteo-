@@ -1,0 +1,7 @@
+# Header (CSP, Cache) kommen aus dist/_headers, das der Build schreibt.
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

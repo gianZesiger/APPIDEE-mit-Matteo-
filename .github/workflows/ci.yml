@@ -1,0 +1,45 @@
+# Qualität bei jedem Push und Pull Request: Lint, Typen, Unit-Tests, Build mit Grössen-Budget, Playwright (inkl. axe-core).
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualitaet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typen
+        run: npx tsc -b
+      - name: Unit-Tests (Domain, Store, Migrationen, Import, Sommerzeit, kein scharfes S)
+        run: npx vitest run
+      - name: Build mit Grössen-Budget (size-limit)
+        run: npm run build
+      - name: Playwright-Browser
+        run: npx playwright install --with-deps chromium
+      - name: Playwright (390 und 1280 px, hell und dunkel, axe-core, Leerlauf-CPU)
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-bericht
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

@@ -1,0 +1,32 @@
+# Abhängigkeiten und Build
+node_modules
+dist
+dist-ssr
+dist-single
+artifact/
+*.tsbuildinfo
+
+# Eigene Einstellungen und Geheimnisse (nie hochladen)
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# Tests
+test-results/
+playwright-report/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# System und Editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
+.claude/

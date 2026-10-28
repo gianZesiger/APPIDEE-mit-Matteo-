@@ -1,0 +1,340 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useStore } from '../../app/store';
+import { Ring, Sheet } from '../../ui/ui';
+import { dayKey } from '../../domain/time';
+import type { Goal } from '../../domain/types';
+import { app } from '../../i18n/de-CH';
+
+const t = app;
+
+/** Ausrutscher festhalten: ruhig, ohne Effekte, ohne Schuld. */
+export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; goodDays: number; onClose: () => void; onSaved: () => void }) {
+  const addEvent = useStore((s) => s.addEvent);
+  const [units, setUnits] = useState(1);
+  const [trigger, setTrigger] = useState<string | undefined>();
+  return (
+    <Sheet onClose={onClose} label={t.heute.slipLink} quiet>
+      <span className="eyebrow">{t.slip.eyebrow}</span>
+      <h2 style={{ fontSize: 28 }}>{t.slip.title}</h2>
+      <p>
+        {t.slip.text} <strong>{t.slip.keep(goodDays)}</strong>
+      </p>
+      <div className="card flat" style={{ alignItems: 'center' }}>
+        <span className="small muted">{t.slip.howMany(goal.unit)}</span>
+        <div className="stepper">
+          <button aria-label={t.common.less} onClick={() => setUnits((u) => Math.max(1, u - 1))} style={{ width: 52, height: 52 }}>
+            −
+          </button>
+          <span className="val num" style={{ fontSize: 48 }}>
+            {units}
+          </span>
+          <button aria-label={t.common.more} onClick={() => setUnits((u) => Math.min(500, u + 1))} style={{ width: 52, height: 52 }}>
+            +
+          </button>
+        </div>
+      </div>
+      <div className="field">
+        <span className="label">{t.slip.trigger}</span>
+        <div className="option-list">
+          {t.triggers.map((x) => (
+            <button key={x} className={`option ${trigger === x ? 'on' : ''}`} aria-pressed={trigger === x} onClick={() => setTrigger(trigger === x ? undefined : x)}>
+              {x}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button
+        className="btn primary block"
+        onClick={() => {
+          addEvent({ goalId: goal.id, at: new Date().toISOString(), units, trigger, kind: 'slip' });
+          onSaved();
+          onClose();
+        }}
+      >
+        {t.slip.go}
+      </button>
+      <button className="btn quiet" onClick={onClose}>
+        {t.common.cancel}
+      </button>
+    </Sheet>
+  );
+}
+
+const MOVE_SECONDS: Record<string, number[]> = {
+  sitzend: [30, 40, 40, 50],
+  stehend: [30, 50, 40, 40],
+  draussen: [30, 120, 30],
+};
+
+type SosMode = null | 'atmen' | 'bewegen' | 'warum' | 'plaene' | 'hilfe';
+
+/** Notfall: «Schwierig gerade?» Ruhig gehalten, ohne Effekte. */
+export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClose: () => void; onSlip?: () => void; onMoved: () => void }) {
+  const [mode, setMode] = useState<SosMode>(null);
+  const plans = useStore((s) => s.plans);
+  const back = (
+    <button className="btn ghost block" onClick={() => setMode(null)}>
+      {t.common.back}
+    </button>
+  );
+  const options: { m: Exclude<SosMode, null>; e: string; title: string; hint: string }[] = [
+    { m: 'atmen', e: '🌬️', title: t.sos.breathe, hint: t.sos.breatheHint },
+    { m: 'bewegen', e: '🌿', title: t.sos.move, hint: t.sos.moveHint },
+    { m: 'warum', e: '💬', title: t.sos.why, hint: t.sos.whyHint },
+    { m: 'plaene', e: '🧭', title: t.sos.plans, hint: t.sos.plansHint },
+  ];
+  return (
+    <Sheet onClose={onClose} label={t.heute.sos} quiet={mode !== 'atmen' && mode !== 'bewegen'}>
+      {!mode && (
+        <>
+          <span className="eyebrow">{t.sos.eyebrow}</span>
+          <h2 style={{ fontSize: 28 }}>{t.sos.title}</h2>
+          <div className="grid2">
+            {options.map((o) => (
+              <button key={o.m} className="card pick" onClick={() => setMode(o.m)}>
+                <span style={{ fontSize: 30 }} aria-hidden="true">
+                  {o.e}
+                </span>
+                <strong>{o.title}</strong>
+                <span className="small muted">{o.hint}</span>
+              </button>
+            ))}
+          </div>
+          <button className="sos-help" onClick={() => setMode('hilfe')}>
+            <strong>{t.sos.help}</strong>
+            <span className="small muted">{t.sos.helpHint}</span>
+          </button>
+          {onSlip && (
+            <button className="btn quiet" onClick={onSlip}>
+              {t.heute.slipLink}
+            </button>
+          )}
+        </>
+      )}
+      {mode === 'warum' && (
+        <>
+          <span className="eyebrow">{t.sos.why}</span>
+          {goal.why ? <p className="why-big">«{goal.why}»</p> : <p>{t.sos.noWhy}</p>}
+          {back}
+        </>
+      )}
+      {mode === 'plaene' && (
+        <>
+          <span className="eyebrow">{t.sos.plans}</span>
+          {plans.length ? (
+            <ul className="plain-list stack-10">
+              {plans.map((p) => (
+                <li key={p.id} className="plan-item">
+                  {t.planIdeas.joined(p.when, p.then)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>{t.sos.noPlans}</p>
+          )}
+          {back}
+        </>
+      )}
+      {mode === 'hilfe' && (
+        <>
+          <span className="eyebrow">{t.sos.help}</span>
+          <p>{t.profil.helpText}</p>
+          <div className="list">
+            <div className="list-row">
+              <div style={{ minWidth: 0 }}>
+                <strong>{t.profil.safezone}</strong>
+                <p className="tiny muted">{t.profil.safezoneText}</p>
+              </div>
+              <a className="btn sm ghost" href="https://www.safezone.ch" target="_blank" rel="noreferrer">
+                {t.profil.open}
+              </a>
+            </div>
+            <div className="list-row">
+              <div style={{ minWidth: 0 }}>
+                <strong>{t.profil.stopline}</strong>
+                <p className="tiny muted">
+                  <span className="selectable">{t.profil.stoplinePhone}</span> · {t.profil.stoplineWeb}
+                </p>
+              </div>
+              <a className="btn sm ghost" href={`tel:${t.profil.stoplinePhone.replace(/\s/g, '')}`}>
+                {t.profil.phone}
+              </a>
+            </div>
+          </div>
+          {back}
+        </>
+      )}
+      {mode === 'atmen' && <Breathe onClose={onClose} />}
+      {mode === 'bewegen' && (
+        <Move
+          onClose={onClose}
+          onDone={() => {
+            onMoved();
+            onClose();
+          }}
+        />
+      )}
+    </Sheet>
+  );
+}
+
+/** «Wie stark ist das Verlangen jetzt?» Privat, wird einmal gespeichert und zählt für «Verlangen überstanden». */
+function CravingRating({ value, onChange }: { value: number | null; onChange: (n: number) => void }) {
+  return (
+    <>
+      <h2 style={{ fontSize: 24 }}>{t.move.craving}</h2>
+      <div className="row" style={{ justifyContent: 'space-between' }} role="radiogroup" aria-label={t.move.craving}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} role="radio" aria-checked={value === n} className={`dchip ${value === n ? 'on' : ''}`} style={{ flex: 1 }} onClick={() => onChange(n)}>
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className="row between tiny muted">
+        <span>{t.move.cravingLow}</span>
+        <span>{t.move.cravingHigh}</span>
+      </div>
+    </>
+  );
+}
+
+function Breathe({ onClose }: { onClose: () => void }) {
+  const addCraving = useStore((s) => s.addCraving);
+  const [rating, setRating] = useState<number | null>(null);
+  const [sec, setSec] = useState(0);
+  const total = 60;
+  useEffect(() => {
+    if (sec >= total) return;
+    const i = setTimeout(() => setSec((x) => x + 1), 1000);
+    return () => clearTimeout(i);
+  }, [sec]);
+  const inhale = sec % 10 < 4;
+  const done = sec >= total;
+  return (
+    <>
+      <span className="eyebrow">{t.breathe.eyebrow}</span>
+      <div style={{ display: 'grid', placeItems: 'center', paddingBlock: 8 }}>
+        <Ring progress={sec / total} size={240} stroke={10} tone="calm">
+          <div className={`breath ${done ? '' : inhale ? 'in' : 'out'}`}>
+            <strong>{done ? t.breathe.done : inhale ? t.breathe.inhale : t.breathe.exhale}</strong>
+          </div>
+        </Ring>
+      </div>
+      {done ? <CravingRating value={rating} onChange={setRating} /> : <p style={{ textAlign: 'center' }} className="muted">{t.breathe.guide}</p>}
+      <button
+        className="btn primary block"
+        onClick={() => {
+          if (done && rating !== null) addCraving(rating);
+          onClose();
+        }}
+      >
+        {done ? t.breathe.back : t.breathe.later}
+      </button>
+    </>
+  );
+}
+
+function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const addWorkout = useStore((s) => s.addWorkout);
+  const addCraving = useStore((s) => s.addCraving);
+  const [kind, setKind] = useState<null | string>(null);
+  const [step, setStep] = useState(0);
+  const [left, setLeft] = useState(0);
+  const [rating, setRating] = useState<number | null>(null);
+  const saved = useRef(false);
+  const seq = useMemo(() => (kind ? t.move.steps[kind].map((text, i) => ({ text, s: MOVE_SECONDS[kind][i] })) : []), [kind]);
+  // Die Stufe bleibt privat und wird nur einmal gespeichert
+  const keepRating = () => {
+    if (rating !== null && !saved.current) {
+      addCraving(rating);
+      saved.current = true;
+    }
+  };
+  const finished = kind !== null && step >= seq.length;
+  useEffect(() => {
+    if (!kind || finished) return;
+    if (left <= 0) {
+      setLeft(seq[step].s);
+      return;
+    }
+    const i = setTimeout(() => {
+      if (left === 1) {
+        setStep((s) => s + 1);
+        setLeft(0);
+      } else setLeft((l) => l - 1);
+    }, 1000);
+    return () => clearTimeout(i);
+  }, [kind, step, left, finished, seq]);
+  const totalS = seq.reduce((a, b) => a + b.s, 0);
+  const doneS = seq.slice(0, step).reduce((a, b) => a + b.s, 0) + (step < seq.length ? seq[step].s - left : 0);
+
+  if (!kind)
+    return (
+      <>
+        <span className="eyebrow">{t.sos.move}</span>
+        <h2 style={{ fontSize: 26 }}>{t.move.where}</h2>
+        <div className="grid3">
+          {(
+            [
+              ['sitzend', '🪑'],
+              ['stehend', '🧍'],
+              ['draussen', '🌳'],
+            ] as const
+          ).map(([k, e]) => (
+            <button key={k} className="option place" onClick={() => setKind(k)}>
+              <span style={{ fontSize: 28 }} aria-hidden="true">
+                {e}
+              </span>
+              {t.move.places[k]}
+            </button>
+          ))}
+        </div>
+        <p className="small muted">{t.sos.moveNote}</p>
+        <p className="small safety">{t.move.safety}</p>
+      </>
+    );
+  if (!finished)
+    return (
+      <>
+        <span className="eyebrow">{t.move.step(step + 1, seq.length)}</span>
+        <div style={{ display: 'grid', placeItems: 'center' }}>
+          <Ring progress={doneS / totalS} size={230} stroke={12} tone="moss">
+            <strong className="num" style={{ fontSize: 48 }}>
+              {left}
+            </strong>
+            <span className="small muted">{t.move.seconds}</span>
+          </Ring>
+        </div>
+        <h2 style={{ fontSize: 24, textAlign: 'center' }}>{seq[Math.min(step, seq.length - 1)].text}</h2>
+        <button className="btn ghost block" onClick={onClose}>
+          {t.common.cancel}
+        </button>
+      </>
+    );
+  return (
+    <>
+      <span className="eyebrow">{t.move.done}</span>
+      <CravingRating value={rating} onChange={setRating} />
+      <button
+        className="btn moss block"
+        onClick={() => {
+          keepRating();
+          const now = new Date();
+          addWorkout({ day: dayKey(now), at: now.toISOString(), sport: 'bewegung', minutes: Math.max(1, Math.round(totalS / 60)), trigger: 'craving' });
+          onDone();
+        }}
+      >
+        {t.move.log}
+      </button>
+      <button
+        className="btn quiet"
+        onClick={() => {
+          keepRating();
+          onClose();
+        }}
+      >
+        {t.move.noLog}
+      </button>
+    </>
+  );
+}

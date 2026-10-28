@@ -1,0 +1,101 @@
+/* Aare-Licht: Design-Tokens für App und Landingpage.
+   Gletscherwasser, Lichtnetze vom Flussgrund, Berner Sandstein als Gold. */
+:root {
+  --bg: #e9f2f1;
+  --bg-deep: #d5e7e5;
+  --surface: rgba(248, 251, 250, 0.86);
+  --surface-solid: #f8fbfa;
+  --surface-2: #dceae8;
+  --ink: #10312f;
+  --muted: #4f6967;
+  --line: #c9dcd9;
+  --primary: #0f7f7f;
+  --primary-2: #0b5e66;
+  --primary-soft: #cfe8e6;
+  --primary-ink: #0b5e66; /* Text auf --primary-soft, 5.8:1 */
+  --on-primary: #ffffff;
+  --gold: #b8914f;
+  --gold-ink: #7d5c22;
+  --gold-soft: #f1e6d0;
+  --gold-ring: #9a7535; /* Ring-Ende, Grafik mindestens 3:1 */
+  --moss: #4f7d2f;
+  --moss-soft: #dde9cf;
+  --moss-ink: #3f6625; /* Text auf --moss-soft */
+  --calm: #2f6f98;
+  --calm-soft: #dcebf5;
+  --warm: #b5523b;
+  --caustic: #ffffff;
+  --glow: rgba(15, 127, 127, 0.35);
+  --shadow: 0 1px 2px rgba(16, 49, 47, 0.06), 0 12px 32px -8px rgba(11, 94, 102, 0.18);
+  --font-display: 'Familjen Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --r-lg: 24px;
+  --r-md: 14px;
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Drei Dauern für Übergänge. Dauerschleifen (Atem, Glühen, Glanz) laufen bewusst langsamer. */
+  --d1: 150ms;
+  --d2: 300ms;
+  --d3: 600ms;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #071a1d;
+    --bg-deep: #04262b;
+    --surface: rgba(14, 38, 41, 0.82);
+    --surface-solid: #0e2629;
+    --surface-2: #143236;
+    --ink: #e4f0ee;
+    --muted: #93aeab;
+    --line: #1f4146;
+    --primary: #3cc7be;
+    --primary-2: #2aa39b;
+    --primary-soft: #10393b;
+    --primary-ink: #3cc7be;
+    --on-primary: #04211f;
+    --gold: #e2c17f;
+    --gold-ink: #e2c17f;
+    --gold-soft: #3a3020;
+    --gold-ring: #f3dcae;
+    --moss: #9ccb6a;
+    --moss-soft: #22341a;
+    --moss-ink: #9ccb6a;
+    --calm: #7fb8da;
+    --calm-soft: #15293a;
+    --warm: #e08a72;
+    --caustic: #6fe3da;
+    --glow: rgba(60, 199, 190, 0.45);
+    --shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #071a1d;
+  --bg-deep: #04262b;
+  --surface: rgba(14, 38, 41, 0.82);
+  --surface-solid: #0e2629;
+  --surface-2: #143236;
+  --ink: #e4f0ee;
+  --muted: #93aeab;
+  --line: #1f4146;
+  --primary: #3cc7be;
+  --primary-2: #2aa39b;
+  --primary-soft: #10393b;
+  --primary-ink: #3cc7be;
+  --on-primary: #04211f;
+  --gold: #e2c17f;
+  --gold-ink: #e2c17f;
+  --gold-soft: #3a3020;
+  --gold-ring: #f3dcae;
+  --moss: #9ccb6a;
+  --moss-soft: #22341a;
+  --moss-ink: #9ccb6a;
+  --calm: #7fb8da;
+  --calm-soft: #15293a;
+  --warm: #e08a72;
+  --caustic: #6fe3da;
+  --glow: rgba(60, 199, 190, 0.45);
+  --shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
