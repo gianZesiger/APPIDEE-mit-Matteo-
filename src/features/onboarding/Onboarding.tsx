@@ -5,6 +5,7 @@ import { CountUp, Ring } from '../../ui/ui';
 import { spark } from '../../ui/motion';
 import { chf, num } from '../../domain/format';
 import { yearly } from '../../domain/stats';
+import { yearlyCost } from '../../domain/presets';
 import { planSteps } from '../../domain/reduction';
 import type { Mode } from '../../domain/types';
 import { dayKey } from '../../domain/time';
@@ -12,6 +13,7 @@ import { checkGoalInput, PER_DAY_MAX, PER_DAY_MIN } from '../../domain/validate'
 import { Field } from '../../ui/Field';
 import { Restore } from '../shared/Restore';
 import { app, words } from '../../i18n/de-CH';
+import { HabitIcon } from '../../ui/icons';
 
 const t = app.onboarding;
 const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
@@ -157,13 +159,16 @@ export default function Onboarding({
           <div className="tiles" ref={tilesRef}>
             {TEMPLATES.map((x) => (
               <button key={x.key} className={`tile tilt ${tpl?.key === x.key ? 'on' : ''} ${x.key === 'eigene' ? 'wide' : ''}`} aria-pressed={tpl?.key === x.key} onClick={() => choose(x)}>
-                <span className="e" aria-hidden="true">
-                  {x.emoji}
-                </span>
+                <HabitIcon k={x.key} size={26} className="e" />
                 <span className="n">{x.name}</span>
               </button>
             ))}
           </div>
+          {tpl && (
+            <p className="tile-year num" aria-live="polite">
+              {tpl.timeBased ? t.tileHours(tpl.name, num(tpl.perDay * 365)) : t.tileYear(tpl.name, chf(yearlyCost(tpl.perDay, tpl.price), 0))}
+            </p>
+          )}
           {needPick && (
             <p className="small hint" role="alert">
               {t.pickFirst}
@@ -203,7 +208,7 @@ export default function Onboarding({
         <>
           <div className="stack-8">
             <span className="eyebrow">
-              <span aria-hidden="true">{tpl.emoji}</span> {tpl.name}
+              <HabitIcon k={tpl.key} size={16} /> {tpl.name}
             </span>
             <h1 className="step-title">{tpl.question}</h1>
           </div>
@@ -344,9 +349,7 @@ export default function Onboarding({
       {step === 4 && (
         <div className="started">
           <Ring progress={1} size={220}>
-            <span style={{ fontSize: '2.75rem' }} className="float" aria-hidden="true">
-              {tpl?.emoji}
-            </span>
+            <span className="float">{tpl && <HabitIcon k={tpl.key} size={40} className="big" />}</span>
           </Ring>
           <h1 style={{ fontSize: '1.875rem' }}>{t.startedTitle}</h1>
           <p className="num" style={{ fontSize: '1.375rem', fontWeight: 700 }}>

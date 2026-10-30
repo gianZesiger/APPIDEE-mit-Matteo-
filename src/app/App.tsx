@@ -169,12 +169,12 @@ export default function App() {
   }, [view]);
 
   // Nach einem Tab-Wechsel springt der Fokus auf die Überschrift (für Tastatur und Screenreader)
-  const firstView = useRef(true);
+  const prevView = useRef<string | null>(null);
   useEffect(() => {
-    if (firstView.current) {
-      firstView.current = false;
-      return;
-    }
+    const prev = prevView.current;
+    prevView.current = view;
+    // Nur bei einem echten Wechsel zwischen Tabs, nicht beim Start oder im Onboarding
+    if (prev === null || prev === 'ob' || view === 'ob' || !hydrated || onboarding !== false) return;
     let tries = 0;
     // Der neue Tab lädt eventuell erst: warten, bis seine Überschrift da ist (nicht die des alten Tabs)
     const label = TABS.find((x) => x.key === view)?.label;
@@ -187,6 +187,8 @@ export default function App() {
     };
     const id = setTimeout(focusH1, 0);
     return () => clearTimeout(id);
+    // Nur der Wechsel der Ansicht zählt
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   useEffect(() => {
@@ -315,8 +317,10 @@ function DemoBanner() {
   const exitDemo = useStore((s) => s.exitDemo);
   return (
     <div className="banner demo" role="status">
-      <span>{t.banner.demo}</span>
-      <button className="btn sm primary" onClick={() => void exitDemo()}>
+      <span className="banner-text">
+        <strong>{t.banner.demo}</strong> <span className="banner-note">· {t.banner.demoNote}</span>
+      </span>
+      <button className="banner-link" onClick={() => void exitDemo()}>
         {t.banner.demoAction}
       </button>
     </div>

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // Effekte und ihr Budget. Hier mit Bewegung, damit die volle Stufe «hoch» geprüft wird.
 test.use({ reducedMotion: 'no-preference' });
 
-async function heuteMitStufe(page: Page, stufe: 'Hoch' | 'Mittel' | 'Tief') {
+async function heuteMitStufe(page: Page, stufe: 'An' | 'Aus' | 'Automatisch') {
   await page.goto('/app/?modus=beispiel');
   await expect(page.getByText('Bisher gespart')).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
@@ -15,7 +15,7 @@ async function heuteMitStufe(page: Page, stufe: 'Hoch' | 'Mittel' | 'Tief') {
 
 test('Leerlauf auf «Heute» mit Stufe hoch: höchstens 5 % CPU', async ({ page, browserName }, info) => {
   test.skip(browserName !== 'chromium' || info.project.name !== 'handy-hell', 'Messung über Chrome DevTools, einmal reicht');
-  await heuteMitStufe(page, 'Hoch');
+  await heuteMitStufe(page, 'An');
   await expect(page.locator('html')).toHaveAttribute('data-fx', 'hoch');
   await expect(page.locator('canvas.caustics')).toBeAttached();
   // Start, Nachladen und Übergänge abwarten
@@ -31,20 +31,16 @@ test('Leerlauf auf «Heute» mit Stufe hoch: höchstens 5 % CPU', async ({ page,
   expect(cpu, 'Anteil Hauptthread im Leerlauf').toBeLessThan(0.05);
 });
 
-test('Stufen: tief ohne Lichtspiel und Unschärfe, mittel ohne Dauerschleifen', async ({ page }) => {
-  await heuteMitStufe(page, 'Tief');
+test('Effekte aus: ohne Lichtspiel und Unschärfe', async ({ page }) => {
+  await heuteMitStufe(page, 'Aus');
   await expect(page.locator('html')).toHaveAttribute('data-fx', 'tief');
   await expect(page.locator('canvas.caustics')).toHaveCount(0);
   expect(await page.locator('.nav').evaluate((el) => getComputedStyle(el).backdropFilter)).toBe('none');
 
-  await heuteMitStufe(page, 'Mittel');
-  await expect(page.locator('html')).toHaveAttribute('data-fx', 'mittel');
-  await expect(page.locator('canvas.caustics')).toBeAttached();
-  expect(await page.locator('.ring-glow').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
 });
 
 test('Ausrutscher- und Hilfe-Screens bleiben ruhig, auch auf Stufe hoch', async ({ page }) => {
-  await heuteMitStufe(page, 'Hoch');
+  await heuteMitStufe(page, 'An');
   await page.getByRole('button', { name: /Schwierig gerade\?/ }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();

@@ -5,6 +5,8 @@ import { CHALLENGE_DAYS, challengeHash, MIN_PATTERN_ENTRIES, patterns, suggestTr
 import type { Goal } from '../../domain/types';
 import { app, words } from '../../i18n/de-CH';
 import { badgeLabel } from '../shared/celebrate';
+import { HabitIcon, Ico, UI } from '../../ui/icons';
+import { Sheet } from '../../ui/ui';
 
 const t = app.ziele;
 
@@ -17,6 +19,7 @@ export function Plans() {
   const removePlan = useStore((s) => s.removePlan);
   const [when, setWhen] = useState('');
   const [then, setThen] = useState('');
+  const [open, setOpen] = useState(false);
   const ideas = useMemo(() => suggestTriggers(patterns(events, cravings), app.triggers).slice(0, 4), [events, cravings]);
   const used = new Set(plans.map((p) => p.when));
   return (
@@ -37,6 +40,12 @@ export function Plans() {
           ))}
         </ul>
       )}
+      <button className="btn outline" onClick={() => setOpen(true)}>
+        {t.planNew}
+      </button>
+      {open && (
+        <Sheet onClose={() => setOpen(false)} label={t.plans}>
+      <h2 className="sheet-title">{t.plans}</h2>
       <div className="stack-8">
         <span className="label">{t.planSuggest}</span>
         <div className="chiprow">
@@ -64,6 +73,7 @@ export function Plans() {
           addPlan(when, then);
           setWhen('');
           setThen('');
+          setOpen(false);
         }}
       >
         <div className="field">
@@ -74,10 +84,12 @@ export function Plans() {
           <label htmlFor="plan-then">{t.planThen}</label>
           <input id="plan-then" className="input" maxLength={120} value={then} onChange={(e) => setThen(e.target.value)} placeholder={app.planIdeas.then.Stress} />
         </div>
-        <button className="btn ghost" type="submit">
+        <button className="btn primary block" type="submit">
           {t.planAdd}
         </button>
       </form>
+        </Sheet>
+      )}
     </section>
   );
 }
@@ -147,7 +159,7 @@ export function Badges({ goals, saved }: { goals: { best: number; hasMoney: bool
         {list.map((b) => (
           <li key={b.key} className={`badge ${b.kind} ${b.reached ? 'on' : ''}`}>
             <span className="badge-ico" aria-hidden="true">
-              {b.kind === 'days' ? '🌊' : b.kind === 'money' ? '🪙' : '🌿'}
+              <Ico i={b.kind === 'days' ? UI.days : b.kind === 'money' ? UI.money : UI.craving} size={22} />
             </span>
             <span className="badge-label">{badgeLabel(b)}</span>
             {!b.reached && <span className="sr-only">, {app.badges.locked}</span>}
@@ -178,7 +190,7 @@ export function Challenge({ goals }: { goals: Goal[] }) {
         <div className="chiprow" role="radiogroup" aria-label={t.habits}>
           {goals.map((g) => (
             <button key={g.id} role="radio" aria-checked={g.id === goal.id} className={`dchip ${g.id === goal.id ? 'on' : ''}`} onClick={() => setGoalId(g.id)}>
-              {g.emoji} {g.name}
+              <HabitIcon k={g.templateKey} size={16} /> {g.name}
             </button>
           ))}
         </div>

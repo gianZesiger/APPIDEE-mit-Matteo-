@@ -73,6 +73,9 @@ test('Heute: ein Ring mit «Bisher gespart», Notfall-Knopf, Sekunden auf Antipp
   await expect(page.getByRole('button', { name: '＋ Gewohnheit' })).toHaveCount(0);
   await tab(page, 'Ziele');
   await expect(page.getByRole('button', { name: '＋ Gewohnheit' })).toBeVisible();
+  // Der Reduktionsplan steht bei der Gewohnheit auf «Heute»
+  await tab(page, 'Heute');
+  await page.getByRole('tab', { name: /Kaffee/ }).click();
   await expect(page.getByText(/bisher 4 pro Tag → Woche 1: höchstens 3/)).toBeVisible();
 });
 
@@ -81,15 +84,15 @@ test('Beispiel: Banner auf allen Tabs, eigene Daten bleiben unberührt', async (
   await page.goto('/app/?modus=beispiel');
   for (const name of ['Heute', 'Sport', 'Ziele', 'Profil']) {
     await tab(page, name);
-    await expect(page.getByText('Du siehst ein Beispiel.')).toBeVisible();
+    await expect(page.getByText('Beispieldaten werden nicht gespeichert.')).toBeVisible();
     await noHorizontalScroll(page);
   }
   // Im Beispiel trainieren: wird nicht gespeichert
   await tab(page, 'Sport');
   await page.getByRole('button', { name: 'Training eintragen', exact: true }).click();
   await page.getByRole('dialog', { name: 'Training eintragen' }).getByRole('button', { name: 'Speichern' }).click();
-  await page.getByRole('button', { name: 'Eigene Gewohnheit starten' }).click();
-  await expect(page.getByText('Du siehst ein Beispiel.')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Eigene starten →' }).click();
+  await expect(page.getByText('Beispieldaten werden nicht gespeichert.')).toHaveCount(0);
   await tab(page, 'Heute');
   await expect(page.getByRole('tab', { name: /Mate/ })).toHaveCount(0);
   await tab(page, 'Sport');
@@ -101,10 +104,10 @@ test('?modus=neu und ?modus=beispiel löschen oder überschreiben nie eigene Dat
   await page.goto('/app/?modus=neu');
   await expect(page.getByText(DAY1)).toBeVisible();
   await page.goto('/app/?modus=beispiel');
-  await expect(page.getByText('Du siehst ein Beispiel.')).toBeVisible();
+  await expect(page.getByText('Beispieldaten werden nicht gespeichert.')).toBeVisible();
   expect(page.url()).not.toContain('modus=');
   await page.reload();
-  await expect(page.getByText('Du siehst ein Beispiel.')).toHaveCount(0);
+  await expect(page.getByText('Beispieldaten werden nicht gespeichert.')).toHaveCount(0);
   await expect(page.getByText(/ohne Vape/)).toBeVisible();
 });
 
@@ -178,6 +181,10 @@ test('Ausrutscher: Serie auf 0, gute Tage bleiben', async ({ page }) => {
 test('Ziele: mehrere Sparziele in Reihenfolge', async ({ page }) => {
   await page.goto('/app/?modus=beispiel');
   await tab(page, 'Ziele');
+  // Formulare nur im Sheet
+  await page.getByRole('button', { name: '+ Sparziel' }).click();
+  await page.getByRole('button', { name: 'Sparziel hinzufügen' }).click();
+  await expect(page.getByRole('dialog').getByText('Bitte einen Namen eingeben.')).toBeVisible();
   await page.getByLabel('Wofür sparst du?').fill('Konzert');
   await page.getByLabel('Betrag in CHF').fill('60');
   await page.getByRole('button', { name: 'Sparziel hinzufügen' }).click();

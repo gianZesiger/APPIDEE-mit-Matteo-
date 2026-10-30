@@ -4,7 +4,9 @@ import { daysCsv, workoutsCsv } from '../../domain/csv';
 import { downloadFile, Sheet } from '../../ui/ui';
 import { Restore } from '../shared/Restore';
 import { app } from '../../i18n/de-CH';
-import { FX_CHOICES, fxAuto, subscribeFx } from '../../ui/fx-level';
+import { fxAuto, subscribeFx, type FxChoice } from '../../ui/fx-level';
+
+const FX_SHOWN: FxChoice[] = ['auto', 'hoch', 'tief'];
 
 const t = app.profil;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -12,7 +14,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 const LEGAL = !import.meta.env.VITE_SINGLEFILE;
 
 export default function Profil() {
-  const fx = useStore((s) => s.fxLevel);
+  // Eine alte Wahl «mittel» zählt hier als «Automatisch»
+  const stored = useStore((s) => s.fxLevel);
+  const fx = stored === 'mittel' ? 'auto' : stored;
   const setFx = useStore((s) => s.setFxLevel);
   const autoLevel = useSyncExternalStore(subscribeFx, fxAuto, () => 'hoch' as const);
   const wipe = useStore((s) => s.wipe);
@@ -84,7 +88,7 @@ export default function Profil() {
             <strong>{t.fx}</strong>
           </legend>
           <div className="seg" role="radiogroup" aria-label={t.fx}>
-            {FX_CHOICES.map((c) => (
+            {FX_SHOWN.map((c) => (
               <label key={c} className={`seg-opt${fx === c ? ' on' : ''}`}>
                 <input type="radio" name="fx" value={c} checked={fx === c} onChange={() => setFx(c)} />
                 <span>{t.fxChoices[c]}</span>

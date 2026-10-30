@@ -522,3 +522,125 @@ a { color: var(--calm); font-weight: 700; }
 .ob-alt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
 .ob-alt > .stack-10 { gap: 8px; }
 .ob-alt .btn { width: 100%; font-size: 0.875rem; padding-inline: 8px; }
+
+/* ===== Teil 3: ansprechend, ruhig lesbar ===== */
+
+/* Drei Schriftstufen: 28 / 17 / 13 px. Labels in normaler Schreibweise, Ziffern tabellarisch. */
+:root { --fs-1: 1.75rem; --fs-2: 1.0625rem; --fs-3: 0.8125rem; }
+body { font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+.page-title, .hero-title, .step-title, .sheet-title { font-size: var(--fs-1); line-height: 1.1; }
+.sheet-title { margin: 0; }
+.card-title, .section-title, .habit-name { font-size: var(--fs-2); }
+.small, .tiny, .eyebrow, .field label, .label { font-size: var(--fs-3); }
+.eyebrow { text-transform: none; letter-spacing: 0; font-weight: 700; }
+.demo-badge { text-transform: none; letter-spacing: 0; }
+
+/* Ein gefüllter Hauptknopf pro Screen, alles Weitere als Umriss */
+.btn.outline { background: transparent; color: var(--primary-ink); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primary) 70%, transparent); }
+.btn.outline:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+
+/* Beispiel-Banner als schmale Leiste */
+.banner.demo { min-height: 40px; padding: 2px 6px 2px 14px; border-radius: 12px; flex-wrap: nowrap; gap: 8px; }
+.banner-text { min-width: 0; font-size: var(--fs-3); line-height: 1.3; }
+.banner-note { font-weight: 500; }
+.banner-link { background: none; border: 0; color: var(--gold-ink); font: inherit; font-weight: 800; font-size: var(--fs-3); min-height: 44px; padding: 0 8px; white-space: nowrap; cursor: pointer; }
+.banner-link:focus-visible { outline: 3px solid var(--calm); outline-offset: 0; border-radius: 8px; }
+
+/* Betrag: «CHF» klein, Rappen in gleicher Farbe mit 50 % Deckkraft. Gold nur für Erfolge. */
+.hero-money .cur { color: var(--muted); font-size: 0.3em; font-weight: 700; }
+.hero-money .cents { color: inherit; opacity: 0.5; }
+.hero-card { gap: 12px; }
+/* Beim Start: Betrag zählt hoch, Ring zeichnet sich (900 ms) */
+.hero-card .odo-strip, .hero-card .ring-bar, .hero-card .ring-tip-g { transition-duration: 900ms; }
+/* Leuchten nur hinter dem Betrag */
+.ring-glow { inset: 30%; filter: blur(22px); }
+
+/* Pulsierender Lichtpunkt am Ende des Ring-Verlaufs (4 s) */
+.ring-halo-rot { position: absolute; inset: 0; pointer-events: none; transition: transform var(--d3) var(--ease); }
+.hero-card .ring-halo-rot { transition-duration: 900ms; }
+.ring-halo { position: absolute; left: 50%; aspect-ratio: 1; border-radius: 50%; background: var(--primary); opacity: 0.35; transform: translate(-50%, -50%); animation: tip 4s var(--ease) infinite; will-change: transform, opacity; }
+.ring-halo.moss { background: var(--moss); } .ring-halo.calm { background: var(--calm); } .ring-halo.gold { background: var(--gold); }
+@keyframes tip { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.35; } 50% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; } }
+[data-fx='mittel'] .ring-halo, [data-fx='tief'] .ring-halo { animation: none; opacity: 0; }
+[data-idle] .ring-halo { animation-play-state: paused; }
+
+/* «Schwierig gerade?» als gut sichtbare Pille direkt unter dem Ring */
+.sos-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 999px; border: 0; background: var(--calm-soft); color: var(--ink); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--calm) 45%, transparent); font: inherit; font-weight: 700; cursor: pointer; }
+.sos-pill svg { color: var(--calm); }
+.sos-pill:focus-visible { outline: 3px solid var(--calm); outline-offset: 2px; }
+
+/* Meilenstein-Moment: Satz in Gold */
+.moment { margin: 0; color: var(--gold-ink); font-family: var(--font-display); font-weight: 700; font-size: var(--fs-2); text-align: center; animation: up var(--d3) var(--spring); }
+
+/* Check-in: Federeffekt */
+.option.mood { transition: transform var(--d2) var(--spring); }
+.option.mood:active { transform: scale(0.92); }
+.option.mood.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-ink); }
+
+/* Icons: jede Gewohnheit mit eigener Tönung */
+.habit-ico { width: 40px; height: 40px; border-radius: 12px; display: inline-grid; place-items: center; flex: none; color: var(--tint); background: color-mix(in srgb, var(--tint) 16%, var(--surface-solid)); }
+.chip .habit-ico, .dchip .habit-ico, .eyebrow .habit-ico { width: 24px; height: 24px; border-radius: 8px; vertical-align: middle; }
+.tile .habit-ico { width: 48px; height: 48px; border-radius: 14px; }
+.habit-ico.big { width: 64px; height: 64px; border-radius: 20px; }
+.tile.on .habit-ico { background: color-mix(in srgb, var(--tint) 26%, var(--surface-solid)); }
+.sos-ico svg, .option svg, .card.pick svg, .badge-ico svg, .record svg { color: var(--primary-ink); }
+.badge.on .badge-ico svg { color: var(--gold-ink); }
+.workout-row .ico svg { color: var(--moss-ink); }
+
+/* Ziele: «Insgesamt» gross, pro Gewohnheit eine Zeile mit Pfeil */
+.total-card .hero-money { font-size: clamp(2.75rem, 12vw, 3.5rem); }
+.habit-list { display: flex; flex-direction: column; gap: 10px; }
+.habit-row { flex-direction: row; align-items: center; gap: 2px; padding: 8px 6px 8px 14px; }
+.habit-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 4px 0; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 52px; }
+.habit-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.habit-amount { font-weight: 700; white-space: nowrap; }
+.habit-open:focus-visible { outline: 3px solid var(--calm); outline-offset: 2px; border-radius: 10px; }
+
+/* Onboarding: Jahresbetrag der gewählten Kachel */
+.tile-year { margin: 0; font-weight: 700; color: var(--gold-ink); text-align: center; }
+
+/* Körnung nur 2 bis 3 % */
+.grain { opacity: 0.025; }
+
+/* Dunkelmodus: Karten etwas heller mit feiner Innenkante oben, Ring weniger gesättigt */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .card:not(.flat) { background: color-mix(in srgb, var(--surface-solid) 88%, #ffffff 4%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), var(--shadow); }
+  :root:not([data-theme='light']) .rg-a { stop-color: color-mix(in srgb, var(--primary) 70%, #8fa9a6); }
+  :root:not([data-theme='light']) .rg-b { stop-color: color-mix(in srgb, #62d6cf 60%, #8fa9a6); }
+  :root:not([data-theme='light']) .habit-ico { color: color-mix(in srgb, var(--tint) 65%, #ffffff); background: color-mix(in srgb, var(--tint) 22%, var(--surface-solid)); }
+}
+:root[data-theme='dark'] .card:not(.flat) { background: color-mix(in srgb, var(--surface-solid) 88%, #ffffff 4%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), var(--shadow); }
+:root[data-theme='dark'] .rg-a { stop-color: color-mix(in srgb, var(--primary) 70%, #8fa9a6); }
+:root[data-theme='dark'] .rg-b { stop-color: color-mix(in srgb, #62d6cf 60%, #8fa9a6); }
+:root[data-theme='dark'] .habit-ico { color: color-mix(in srgb, var(--tint) 65%, #ffffff); background: color-mix(in srgb, var(--tint) 22%, var(--surface-solid)); }
+
+/* Gemeinsamer Übergang von der Gewohnheits-Karte ins Detail */
+::view-transition-group(*) { animation-duration: var(--d3); animation-timing-function: var(--ease); }
+
+/* Onboarding auf hohen Bildschirmen vertikal zentriert */
+@media (min-height: 760px) {
+  .ob.with-bar { justify-content: center; }
+}
+
+/* Tablet ab 768 px: zwei Spalten, Navigation in Inhaltsbreite (ab 900 px gilt der Handy-Rahmen) */
+@media (min-width: 768px) and (max-width: 899px) {
+  .app { max-width: 760px; }
+  .screen:not(.ob) { display: grid; grid-template-columns: 1fr 1fr; align-items: start; column-gap: 16px; }
+  .screen:not(.ob) > :is(.topbar, .chips, .section-title, .habit-list, .review, .total-card, h1) { grid-column: 1 / -1; }
+  .screen.ob { max-width: 560px; margin-inline: auto; width: 100%; }
+  .nav { left: 50%; right: auto; width: min(760px, 100%); transform: translateX(-50%); border-radius: 20px 20px 0 0; }
+  .nav-inner { max-width: none; }
+  .banner { margin-inline: 16px; }
+}
+
+/* Kleine Handys: Kacheln kompakter, damit die Auswahl ohne Scrollen passt */
+@media (max-height: 700px) {
+  .tiles { gap: 8px; }
+  .tile { min-height: 68px; padding: 10px 12px; gap: 6px; }
+  .tile .habit-ico { width: 32px; height: 32px; border-radius: 10px; }
+  .ob.with-bar { padding-bottom: 176px; }
+  .ob { gap: 10px; }
+  .ob .hero-title { font-size: 1.625rem; }
+}
+/* Fokus per Programm (Überschrift nach Tab-Wechsel) ohne Rahmen; Tastatur-Fokus bleibt sichtbar */
+h1[tabindex='-1']:focus:not(:focus-visible) { outline: none; }

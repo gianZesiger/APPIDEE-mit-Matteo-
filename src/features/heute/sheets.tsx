@@ -8,6 +8,8 @@ import { templateByKey } from '../../domain/templates';
 
 import type { Goal } from '../../domain/types';
 import { app, words } from '../../i18n/de-CH';
+import { Ico, UI } from '../../ui/icons';
+import type { LucideIcon } from 'lucide-react';
 
 const t = app;
 
@@ -133,11 +135,11 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
       {t.common.back}
     </button>
   );
-  const options: { m: Exclude<SosMode, null>; e: string; title: string; hint: string }[] = [
-    { m: 'atmen', e: '🌬️', title: t.sos.breathe, hint: t.sos.breatheHint },
-    { m: 'bewegen', e: '🌿', title: t.sos.move, hint: t.sos.moveHint },
-    { m: 'warum', e: '💬', title: t.sos.why, hint: t.sos.whyHint },
-    { m: 'plaene', e: '🧭', title: t.sos.plans, hint: t.sos.plansHint },
+  const options: { m: Exclude<SosMode, null>; e: LucideIcon; title: string; hint: string }[] = [
+    { m: 'atmen', e: UI.breathe, title: t.sos.breathe, hint: t.sos.breatheHint },
+    { m: 'bewegen', e: UI.move, title: t.sos.move, hint: t.sos.moveHint },
+    { m: 'warum', e: UI.why, title: t.sos.why, hint: t.sos.whyHint },
+    { m: 'plaene', e: UI.plans, title: t.sos.plans, hint: t.sos.plansHint },
   ];
   return (
     <Sheet onClose={onClose} label={t.heute.sos} quiet={mode !== 'atmen' && mode !== 'bewegen'}>
@@ -148,9 +150,7 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
           <div className="grid2">
             {options.map((o) => (
               <button key={o.m} className="card pick" onClick={() => setMode(o.m)}>
-                <span style={{ fontSize: '1.875rem' }} aria-hidden="true">
-                  {o.e}
-                </span>
+                <Ico i={o.e} size={28} />
                 <strong>{o.title}</strong>
                 <span className="small muted">{o.hint}</span>
               </button>
@@ -308,15 +308,13 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
         <div className="grid3">
           {(
             [
-              ['sitzend', '🪑'],
-              ['stehend', '🧍'],
-              ['draussen', '🌳'],
+              ['sitzend', UI.sitting],
+              ['stehend', UI.standing],
+              ['draussen', UI.outside],
             ] as const
           ).map(([k, e]) => (
             <button key={k} className="option place" onClick={() => setKind(k)}>
-              <span style={{ fontSize: '1.75rem' }} aria-hidden="true">
-                {e}
-              </span>
+              <Ico i={e} size={28} />
               {t.move.places[k]}
             </button>
           ))}

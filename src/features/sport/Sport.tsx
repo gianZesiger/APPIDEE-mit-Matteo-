@@ -8,14 +8,16 @@ import { CountUpInline } from '../../ui/CountUpInline';
 import { spark } from '../../ui/motion';
 import { app, words } from '../../i18n/de-CH';
 import { useBadgeCelebration } from '../shared/celebrate';
+import { HabitIcon, Ico, SportIcon, UI } from '../../ui/icons';
+import type { LucideIcon } from 'lucide-react';
 
 const t = app.sport;
 const DURATIONS = [15, 30, 45, 60, 90];
-const FEEL: { v: 1 | 2 | 3 | 4; e: string }[] = [
-  { v: 1, e: '🪫' },
-  { v: 2, e: '🙂' },
-  { v: 3, e: '😊' },
-  { v: 4, e: '🔥' },
+const FEEL: { v: 1 | 2 | 3 | 4; e: LucideIcon }[] = [
+  { v: 1, e: UI.feelEmpty },
+  { v: 2, e: UI.feelOk },
+  { v: 3, e: UI.feelGood },
+  { v: 4, e: UI.feelStrong },
 ];
 const sportName = (k: string) => app.sports[k] ?? app.sports.andere;
 const shortDate = (day: string, opts: Intl.DateTimeFormatOptions) => new Date(day + 'T12:00:00').toLocaleDateString('de-CH', opts);
@@ -105,8 +107,8 @@ export default function Sport() {
 
       {firstGoal && st.sinceQuit > 0 && (
         <section className="card flat reveal row" style={{ gap: 14 }}>
-          <span style={{ fontSize: '2.125rem' }} className="float" aria-hidden="true">
-            {firstGoal.emoji}
+          <span className="float">
+            <HabitIcon k={firstGoal.templateKey} size={28} className="big" />
           </span>
           <div>
             <span className="eyebrow">{t.sinceQuit(firstGoal.name)}</span>
@@ -153,13 +155,11 @@ export default function Sport() {
 
       <section className="grid2 reveal" aria-label={t.records}>
         {[
-          { v: words.minutesLong(st.longest?.minutes ?? 0), l: t.longest, e: '⏱️' },
-          { v: words.minutesLong(st.bestWeek), l: t.bestWeek, e: '🏔️' },
+          { v: words.minutesLong(st.longest?.minutes ?? 0), l: t.longest, e: UI.feelStrong },
+          { v: words.minutesLong(st.bestWeek), l: t.bestWeek, e: UI.days },
         ].map((x) => (
           <div key={x.l} className="card tilt record">
-            <span aria-hidden="true" style={{ fontSize: '1.25rem' }}>
-              {x.e}
-            </span>
+            <Ico i={x.e} size={20} />
             <span className="num record-v">{x.v}</span>
             <span className="tiny muted">{x.l}</span>
           </div>
@@ -188,7 +188,7 @@ export default function Sport() {
             if (reached) {
               setTimeout(() => spark(undefined, undefined, { count: 80 }), 150);
               setToast({ text: t.weekReached });
-            } else setToast({ text: t.saved(sportByKey(w.sport).emoji, words.minutesLong(w.minutes)) });
+            } else setToast({ text: t.saved(sportName(w.sport), words.minutesLong(w.minutes)) });
           }}
         />
       )}
@@ -237,7 +237,7 @@ function WorkoutRow({ w, onRemove }: { w: Workout; onRemove: () => void }) {
       }}
     >
       <span className="ico" aria-hidden="true" style={w.rest ? { background: 'var(--calm-soft)' } : undefined}>
-        {w.rest ? '😌' : s.emoji}
+        {w.rest ? <Ico i={UI.rest} /> : <SportIcon k={s.key} />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong>{name}</strong>
@@ -322,7 +322,7 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
         {SPORTS.filter((s) => s.key !== 'bewegung').map((s) => (
           <button key={s.key} role="radio" aria-checked={sport === s.key} className={`sport-pick ${sport === s.key ? 'on' : ''}`} onClick={() => setSport(s.key)}>
             <span className="e" aria-hidden="true">
-              {s.emoji}
+              <SportIcon k={s.key} size={24} />
             </span>
             {sportName(s.key)}
           </button>
@@ -402,9 +402,7 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
             <div className="grid4">
               {FEEL.map((f) => (
                 <button key={f.v} className={`option feel ${feel === f.v ? 'on' : ''}`} aria-pressed={feel === f.v} onClick={() => setFeel(feel === f.v ? undefined : f.v)}>
-                  <span style={{ fontSize: '1.375rem' }} aria-hidden="true">
-                    {f.e}
-                  </span>
+                  <Ico i={f.e} size={22} />
                   <span className="tiny">{t.feelings[f.v]}</span>
                 </button>
               ))}

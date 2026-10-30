@@ -113,6 +113,10 @@ export function Ring({
           return <circle key={m} cx={x} cy={y} r={stroke / 5} fill="var(--surface)" />;
         })}
       </svg>
+      {/* Pulsierender Lichtpunkt am Ring-Ende: HTML statt SVG, damit nur transform und opacity laufen (Grafikkarte) */}
+      <span className="ring-halo-rot" style={{ transform: `rotate(${shown * 360}deg)` }} aria-hidden="true">
+        <span className={`ring-halo ${tone}`} style={{ top: `${(stroke / 2 / size) * 100}%`, width: `${((stroke * 1.24) / size) * 100}%` }} />
+      </span>
       <div className="ring-center">{children}</div>
     </div>
   );

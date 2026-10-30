@@ -16,11 +16,13 @@ import { isIos, isStandalone, useInstallPrompt } from '../../app/pwa';
 import type { Goal, UseEvent } from '../../domain/types';
 import { Ring, Toast, useNow } from '../../ui/ui';
 import { Odometer } from '../../ui/Odometer';
-import { spark } from '../../ui/motion';
+import { motionOK, spark } from '../../ui/motion';
+import { ReducePlan } from './ReducePlan';
 import { app, words } from '../../i18n/de-CH';
 import { celebrationText, useBadgeCelebration } from '../shared/celebrate';
 import type { ShareOption } from '../share/ShareSheet';
 import { DaySheet, SlipSheet, SosSheet } from './sheets';
+import { HabitIcon, Ico, UI } from '../../ui/icons';
 
 const ShareSheet = lazy(() => import('../share/ShareSheet'));
 const t = app.heute;
@@ -39,10 +41,15 @@ export default function Heute({ go }: { go: (t: Tab) => void }) {
   );
 }
 
-/** Live-Betrag als eigene kleine Komponente: nur sie rendert jede Sekunde neu. */
+/** Live-Betrag als eigene kleine Komponente: nur sie rendert jede Sekunde neu. Beim Start zählt er von 0 hoch. */
 function LiveSaved({ goal, events }: { goal: Goal; events: UseEvent[] }) {
   const now = useNow(1000);
   const s = goalSummary(goal, events, now);
+  const [boot, setBoot] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBoot(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
   const tpl = templateByKey(goal.templateKey);
   if (tpl.timeBased) {
     return (
@@ -62,15 +69,17 @@ function LiveSaved({ goal, events }: { goal: Goal; events: UseEvent[] }) {
     );
   }
   const money = chf(s.saved, 2);
-  const [int, cents] = money.split('.');
+  // Gleich viele Stellen wie der Zielwert, damit jede Ziffer von 0 aus rollt
+  const shown = boot ? money : money.replace(/\d/g, '0');
+  const [int, cents] = shown.split('.');
   return (
     <div className="hero-money num live">
       <span className="cur" aria-hidden="true">
         {app.common.chf}
       </span>
       <Odometer value={int} srText={t.savedSpeech(chfSpeech(s.saved))} />
-      <span className="cents">
-        <span aria-hidden="true">.</span>
+      <span className="cents" aria-hidden="true">
+        <span>.</span>
         <Odometer value={cents} srText="" />
       </span>
     </div>
@@ -86,9 +95,9 @@ function LiveExact({ from }: { from: number }) {
 type Share = { headline: string; options: ShareOption[] } | null;
 
 const MOODS = [
-  [1, '😮‍💨'],
-  [2, '🙂'],
-  [3, '💪'],
+  [1, UI.moodTough],
+  [2, UI.moodOk],
+  [3, UI.moodStrong],
 ] as const;
 
 function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
@@ -139,6 +148,13 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   const [stage, setStage] = useState<null | 'ask' | 'journal'>(null);
   const [changing, setChanging] = useState(false);
   const [note, setNoteText] = useState('');
+  // Meilenstein-Moment: der Ring füllt sich ganz, ein Satz in Gold
+  const [moment, setMoment] = useState<string | null>(null);
+  useEffect(() => {
+    if (!moment) return;
+    const id = setTimeout(() => setMoment(null), 3500);
+    return () => clearTimeout(id);
+  }, [moment]);
 
   useBadgeCelebration(setToast);
 
@@ -148,7 +164,8 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
     if (!r.changed) return;
     setMilestones(goal.id, r.keep);
     if (r.celebrate) {
-      setToast(celebrationText(r.celebrate));
+      if (r.celebrate.kind === 'days') setMoment(celebrationText(r.celebrate));
+      else setToast(celebrationText(r.celebrate));
       setTimeout(() => spark(undefined, undefined, { count: 90 }), 120);
     }
   }, [stats.streak, stats.saved, seen, goal.id, money, setMilestones]);
@@ -199,14 +216,20 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           aria-pressed={todayCheck?.mood === v}
           onClick={() => {
             const first = !todayCheck;
+            // Kurzes Vibrieren (falls das Gerät es kann), der Knopf federt
+            if (motionOK()) {
+              try {
+                navigator.vibrate?.(12);
+              } catch {
+                /* nicht verfügbar */
+              }
+            }
             checkIn(v);
             setChanging(false);
             if (first) setStage(v === 1 ? 'ask' : 'journal');
           }}
         >
-          <span style={{ fontSize: '1.625rem' }} aria-hidden="true">
-            {e}
-          </span>
+          <Ico i={e} size={26} />
           <span className="small">{t.moods[v]}</span>
         </button>
       ))}
@@ -250,7 +273,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
               className={`chip ${g.id === goal.id ? 'on' : ''}`}
               onClick={() => setActive(g.id)}
             >
-              <span aria-hidden="true">{g.emoji}</span> {g.name}
+              <HabitIcon k={g.templateKey} size={16} /> {g.name}
             </button>
           ))}
         </div>
@@ -300,8 +323,8 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
         </section>
       )}
 
-      <section className="card hero-card tilt">
-        <Ring progress={ms.progress} size={272} stroke={18} label={t.ringLabel} valueText={nextText}>
+      <section className="card hero-card tilt" style={{ viewTransitionName: `habit-${goal.id}` }}>
+        <Ring progress={moment ? 1 : ms.progress} size={240} stroke={16} label={t.ringLabel} valueText={nextText} tone={moment ? 'gold' : ''}>
           <span className="eyebrow">
             <span className="pulse-dot" aria-hidden="true" /> {label}
           </span>
@@ -311,6 +334,15 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           </button>
           {exact ? <LiveExact from={stats.cleanFrom} /> : <span className="tiny muted">{t.exactHint}</span>}
         </Ring>
+        {moment && (
+          <p className="moment" role="status">
+            {moment}
+          </p>
+        )}
+        <button className="sos-pill" onClick={() => setSheet('sos')}>
+          <Ico i={UI.sos} size={18} />
+          {t.sos}
+        </button>
         {goal.challengeDays && (
           <span className="pill gold">{challengeDone >= goal.challengeDays ? t.challengeDone : t.challenge(goal.challengeDays - challengeDone, goal.challengeDays)}</span>
         )}
@@ -330,6 +362,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
             </div>
             <p className="small muted">{t.inPlan(stats.plan.inPlan, stats.plan.daysSoFar)}</p>
             {stats.todayUnits > stats.todayLimit && <p className="small muted">{t.overLimit}</p>}
+            <ReducePlan goal={goal} />
           </div>
         )}
       </section>
@@ -446,16 +479,6 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
         </section>
       )}
 
-      <button className="sos-btn" onClick={() => setSheet('sos')}>
-        <span className="sos-ico" aria-hidden="true">
-          🌿
-        </span>
-        <span className="sos-txt">
-          <strong>{t.sos}</strong>
-          <span className="small">{t.sosHint}</span>
-        </span>
-      </button>
-
       <section className="card reveal" aria-labelledby="strip-h">
         <div className="row between wrap">
           <h2 id="strip-h" className="card-title">
@@ -481,7 +504,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
 
       {(pot || lastPot) && (
         <button className="pot-line reveal" onClick={() => go('ziele')}>
-          <span aria-hidden="true">🎯</span>
+          <Ico i={UI.pot} size={18} />
           <span>{pot ? t.savingsLine(pot.pot.name, chf(pot.left)) : t.savingsDone(lastPot!.pot.name)}</span>
           <span className="muted" aria-hidden="true">
             ›
