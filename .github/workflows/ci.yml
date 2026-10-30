@@ -35,8 +35,11 @@ jobs:
         run: npm run build
       - name: Playwright-Browser
         run: npx playwright install --with-deps chromium
-      - name: Playwright (390 und 1280 px, hell und dunkel, axe-core, Leerlauf-CPU)
-        run: npx playwright test
+      - name: Playwright (390 und 1280 px, hell und dunkel, axe-core)
+        run: npx playwright test --grep-invert "Leerlauf"
+      # Allein messen: neben anderen Tests würde der Rechner mitzählen
+      - name: Leerlauf-CPU auf «Heute» (allein)
+        run: npx playwright test --grep "Leerlauf" --workers=1
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

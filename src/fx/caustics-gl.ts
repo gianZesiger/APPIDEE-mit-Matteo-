@@ -1,5 +1,5 @@
 // Aare-Licht: Kaustik wie Licht auf einem Flussgrund, als kleiner WebGL-Shader.
-// Für App und Landingpage. Kleine Auflösung (die Unschärfe macht CSS), 20 Bilder pro Sekunde.
+// Für App und Landingpage. Kleine Auflösung (die Unschärfe macht CSS), 15 Bilder pro Sekunde.
 // Die Farbe wird einmal gelesen (und nur beim Wechsel hell/dunkel neu).
 // Pausiert, wenn die Seite im Hintergrund ist und nach 20 Sekunden ohne Eingabe.
 import { isIdle, subscribeFx } from '../ui/fx-level';
@@ -14,7 +14,7 @@ void main(){
   gl_FragColor=vec4(c*k,k);
 }`;
 
-const FPS = 20;
+const FPS = 15;
 /** Pixel der Zeichenfläche pro Pixel auf dem Bildschirm. Klein reicht, CSS weichzeichnet. */
 const SCALE = 0.22;
 

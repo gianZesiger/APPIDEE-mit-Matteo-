@@ -61,7 +61,11 @@ Alle Texte der App stehen in `src/i18n/de-CH.ts`: Deutsch, Schweizer Rechtschrei
 
 ## Veröffentlichen
 
-Das Repo ist öffentlich. Die App wird gratis über GitHub Pages veröffentlicht: Nach jedem Push auf `main` baut eine GitHub Action die Seite neu (wird eingerichtet). Wer lieber Cloudflare Pages oder Netlify nimmt: Build-Befehl `npm run build`, Ausgabeordner `dist`, Node 22 (siehe unten).
+Die Seite läuft gratis auf GitHub Pages: **https://gianzesiger.github.io/APPIDEE-mit-Matteo-/** (App unter `/app/`).
+
+Nach jedem Push auf `main` prüft `.github/workflows/ci.yml` alles (Lint, Typen, Unit-Tests, Build mit Grössen-Budget, Playwright). Nur wenn alles grün ist, baut der Workflow die Seite mit `BASE_PATH=/APPIDEE-mit-Matteo-/` und veröffentlicht sie. GitHub Pages sendet keine eigenen Header, darum steht die Content-Security-Policy zusätzlich als `<meta>` in jeder Seite.
+
+Wer später zu Cloudflare Pages oder Netlify wechselt: Build-Befehl `npm run build`, Ausgabeordner `dist`, Node 22, kein `BASE_PATH`, und `PUBLIC_URL` in `src/config.ts` anpassen.
 
 ## Seiten
 | Adresse | Inhalt |
@@ -93,7 +97,7 @@ Im Code steht dafür `[[BITTE AUSFÜLLEN]]`:
 
 - Impressum: Name, Adresse, E-Mail
 - Datenschutzerklärung: Hoster, Messdienst (falls genutzt), Stand-Datum
-- `PUBLIC_URL` in `src/config.ts` (Adresse der Website)
+- `PUBLIC_URL` in `src/config.ts` ist eingetragen; bei einer eigenen Domain dort ändern
 - Messung: `VITE_CF_ANALYTICS_TOKEN` (oder leer lassen)
 
 ## Installierbare App
@@ -105,7 +109,7 @@ Im Code steht dafür `[[BITTE AUSFÜLLEN]]`:
 
 ## Effekte
 
-`html[data-fx=hoch|mittel|tief]`, gewählt aus `prefers-reduced-motion`, Datensparen, Prozessorkernen, Arbeitsspeicher und einer 2-Sekunden-Messung der Bildrate. Die Wahl im Profil hat Vorrang. Die Kaustik ist ein kleiner WebGL-Shader (20 Bilder pro Sekunde) und pausiert im Hintergrund und nach 20 Sekunden ohne Eingabe. Ausrutscher- und Hilfe-Screens bleiben immer ruhig.
+`html[data-fx=hoch|mittel|tief]`, gewählt aus `prefers-reduced-motion`, Datensparen, Prozessorkernen, Arbeitsspeicher und einer 2-Sekunden-Messung der Bildrate. Die Wahl im Profil hat Vorrang. Die Kaustik ist ein kleiner WebGL-Shader (15 Bilder pro Sekunde) und pausiert im Hintergrund und nach 20 Sekunden ohne Eingabe. Ausrutscher- und Hilfe-Screens bleiben immer ruhig.
 
 ## Qualität
 
