@@ -646,3 +646,6 @@ body { font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
 h1[tabindex='-1']:focus:not(:focus-visible) { outline: none; }
 
 .moment-box { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+/* Gesundheitshinweis: ruhig, gut lesbar, ohne Alarmfarbe */
+.health-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--calm-soft); color: var(--ink); }

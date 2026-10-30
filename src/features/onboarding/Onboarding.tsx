@@ -17,6 +17,8 @@ import { HabitIcon } from '../../ui/icons';
 
 const t = app.onboarding;
 const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
+/** Nikotin und Koffein: beim Reduzieren ein kurzer Hinweis auf mögliche Kopfschmerzen oder Reizbarkeit */
+export const REDUCE_HINT = ['snus', 'vape', 'zig', 'kaffee'];
 
 export default function Onboarding({
   onDone,
@@ -291,6 +293,17 @@ export default function Onboarding({
               {check.errors.startDay ?? check.warnings.startDay ?? t.startHint}
             </span>
           </div>
+          {/* Gesundheitshinweise ohne Versprechen: Alkohol beim Aufhören, Nikotin und Kaffee beim Reduzieren */}
+          {mode === 'quit' && tpl.key === 'alkohol' && (
+            <p className="small health-note" role="note">
+              {t.alcoholHint}
+            </p>
+          )}
+          {mode === 'reduce' && REDUCE_HINT.includes(tpl.key) && (
+            <p className="small health-note" role="note">
+              {t.reduceHint}
+            </p>
+          )}
           <button className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setMode(mode === 'quit' ? 'reduce' : 'quit')}>
             {mode === 'quit' ? t.reduceLink : t.quitLink}
           </button>

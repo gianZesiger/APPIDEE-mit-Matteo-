@@ -27,6 +27,7 @@ export function ReducePlan({ goal }: { goal: Goal }) {
       <button className="linkbtn" style={{ alignSelf: 'flex-start' }} disabled={!can} onClick={() => extend(goal.id)}>
         {t.extend}
       </button>
+      {['snus', 'vape', 'zig', 'kaffee'].includes(goal.templateKey) && <span className="tiny muted">{app.onboarding.reduceHint}</span>}
       <span className="tiny muted">{can ? t.extendHint : now.end === null ? t.extendLast : last ? t.extendWait(words.date(addDays(last, 7))) : t.extendHint}</span>
     </div>
   );

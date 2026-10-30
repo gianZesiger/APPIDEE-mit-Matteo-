@@ -132,14 +132,15 @@ export default function Sport() {
           <div className="field">
             <label htmlFor="sport-goal">{t.goalLabel}</label>
             <input id="sport-goal" type="range" min={30} max={600} step={10} value={goalMin} onChange={(e) => setGoal(+e.target.value)} />
-            <span className="tiny muted">
-              {t.who}{' '}
-              <a href="https://www.ncbi.nlm.nih.gov/books/NBK566048/" target="_blank" rel="noreferrer" style={{ color: 'var(--calm)' }}>
-                {t.source}
-              </a>
-            </span>
           </div>
         )}
+        {/* Wochenziel 150 Minuten mit Quelle, immer sichtbar */}
+        <span className="tiny muted">
+          {t.who}{' '}
+          <a href="https://www.ncbi.nlm.nih.gov/books/NBK566048/" target="_blank" rel="noreferrer" style={{ color: 'var(--calm)' }}>
+            {t.source}
+          </a>
+        </span>
         <div className="weekbars" role="img" aria-label={st.last8.map((w) => `${shortDate(w.start, { day: 'numeric', month: 'long' })}: ${words.minutes(w.minutes)}`).join(', ')}>
           <div className="goal-line" style={{ bottom: `calc(${(goalMin / maxBar) * 100}% * 0.78 + 18px)` }}>
             <span>{t.goalLine}</span>

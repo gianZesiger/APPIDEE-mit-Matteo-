@@ -87,21 +87,28 @@ describe('Schweizer Rechtschreibung', () => {
     const { readFileSync, readdirSync, statSync } = await import('node:fs');
     const { join } = await import('node:path');
     const bad: string[] = [];
-    const walk = (dir: string) => {
+    // Das ganze Projekt, nicht nur die App-Texte
+    const skip = new Set(['node_modules', 'dist', 'dist-single', 'artifact', 'test-results', 'playwright-report', '.git', 'public']);
+    const walkAll = (dir: string) => {
       for (const f of readdirSync(dir)) {
+        if (skip.has(f)) continue;
         const p = join(dir, f);
-        if (statSync(p).isDirectory()) walk(p);
-        else if (/\.(tsx?|css|html|json|md)$/.test(f) && readFileSync(p, 'utf8').includes(SHARP_S)) bad.push(p);
+        if (statSync(p).isDirectory()) walkAll(p);
+        else if (/\.(tsx?|mjs|cjs|js|css|html|json|md|ya?ml|toml)$|^\.(gitignore|gitattributes|env\.example)$/.test(f) && readFileSync(p, 'utf8').includes(SHARP_S)) bad.push(p);
       }
     };
-    walk('src');
-    for (const f of ['index.html', 'app/index.html', 'README.md']) {
-      try {
-        if (readFileSync(f, 'utf8').includes(SHARP_S)) bad.push(f);
-      } catch {
-        /* Datei gibt es (noch) nicht */
-      }
-    }
-    expect(bad).toEqual([]);
+    walkAll('.');
+    expect([...new Set(bad)]).toEqual([]);
+  });
+
+  it('Glossar: überall dieselben Wörter (kein «Gewinn-Tag», «Rückfall», «Streak»)', async () => {
+    const { readFileSync } = await import('node:fs');
+    // Ohne den Kopfkommentar, der das Glossar selbst erklärt
+    const src = readFileSync('src/i18n/de-CH.ts', 'utf8').split('\n').slice(8).join('\n');
+    // Nur sichtbare Texte (in Anführungszeichen), keine Schlüssel wie bestStreak
+    const text = (src.match(/'(?:[^'\\\n]|\\.)*'|`[^`]*`/g) ?? []).join('\n');
+    for (const word of ['Gewinn-Tag', 'Gewinntag', 'Rückfall', 'Streak', 'am Stück', 'Workout', 'Erfolgstag']) expect(text, word).not.toContain(word);
+    // Keine Wirkversprechen
+    for (const word of ['heilt', 'garantiert', 'wirkt sofort', 'dämpft']) expect(text.toLowerCase(), word).not.toContain(word);
   });
 });

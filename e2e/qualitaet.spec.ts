@@ -201,3 +201,15 @@ test('Nach dem Tab-Wechsel liegt der Fokus auf der Überschrift; Gewohnheiten we
   await expect(page.getByRole('tab', { name: /Kaffee/ })).toBeFocused();
   await expect(mate).toHaveAttribute('tabindex', '-1');
 });
+
+test('Gesundheitshinweise: Alkohol beim Aufhören, Nikotin und Kaffee beim Reduzieren', async ({ page }) => {
+  await page.goto('/app/');
+  await page.getByRole('button', { name: /Alkohol/ }).click();
+  await page.getByRole('button', { name: /Los geht/ }).click();
+  await expect(page.getByText('Bei viel Alkohol täglich zuerst mit Hausärztin, Hausarzt oder einer Fachstelle reden.')).toBeVisible();
+  await page.getByRole('button', { name: 'Zurück' }).click();
+  await page.getByRole('button', { name: /Kaffee/ }).click();
+  await page.getByRole('button', { name: /Los geht/ }).click();
+  await page.getByRole('button', { name: /Lieber schrittweise reduzieren/ }).click();
+  await expect(page.getByText(/Kopfschmerzen oder Reizbarkeit/)).toBeVisible();
+});
