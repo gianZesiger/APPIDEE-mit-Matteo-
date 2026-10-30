@@ -172,3 +172,6 @@ img { max-width: 100%; height: auto; display: block; }
 @media (min-width: 1000px) { .features { grid-template-columns: repeat(3, 1fr); } }
 /* Labels in normaler Schreibweise wie in der App */
 .eyebrow, .calc-eyebrow { text-transform: none; letter-spacing: 0; }
+/* Hintergrund-Schimmer nie breiter als die Seite (kein seitliches Scrollen bei 320 px) */
+.hero-bg { inset: -20% 0 auto; }
+body { overflow-x: clip; }

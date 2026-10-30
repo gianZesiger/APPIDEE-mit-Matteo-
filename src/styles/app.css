@@ -649,3 +649,8 @@ h1[tabindex='-1']:focus:not(:focus-visible) { outline: none; }
 
 /* Gesundheitshinweis: ruhig, gut lesbar, ohne Alarmfarbe */
 .health-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--calm-soft); color: var(--ink); }
+/* Wochenbalken passen auch bei 320 px */
+.weekbars { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.wb { min-width: 0; }
+.wb span { font-size: var(--fs-3); white-space: nowrap; }
+@media (max-width: 360px) { .weekbars { gap: 3px; } .wb span { letter-spacing: -0.02em; } }

@@ -42,7 +42,7 @@ export default function Ziele({ goNew, goToday }: { goNew: () => void; goToday: 
 
       <section className="card total-card" style={{ gap: 6 }}>
         <span className="eyebrow">{t.total}</span>
-        <div className="hero-money num">
+        <div className="hero-money num" data-value={total}>
           <span className="cur" aria-hidden="true">
             {app.common.chf}
           </span>

@@ -11,7 +11,8 @@ const assets = join(dist, 'assets');
 function htmlScripts(page) {
   const html = readFileSync(join(dist, page), 'utf8');
   const urls = [...html.matchAll(/<script type="module"[^>]*src="([^"]+)"/g), ...html.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
-  return urls.map((u) => join(dist, u.replace(/^\//, '')));
+  // Mit Basis-Pfad (GitHub Pages) beginnen die Adressen mit /<repo>/assets/: nur der Teil ab assets/ zählt
+  return urls.map((u) => join(assets, basename(u)));
 }
 
 /** Folgt den Importen einer Datei; mit lazy auch den dynamischen (import("./x.js")). */

@@ -6,7 +6,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import { VitePWA } from 'vite-plugin-pwa';
 import { prerender, PRERENDERED } from './src/landing/prerender';
 import { landing, pwa } from './src/i18n/de-CH';
-import { headerRules, headersFile, matches } from './src/landing/hosting';
+import { csp, headerRules, headersFile, matches } from './src/landing/hosting';
 import { PUBLIC_URL } from './src/config';
 
 // Mehrseiten-App:
@@ -21,15 +21,38 @@ const BASE = single ? './' : `/${(process.env.BASE_PATH ?? '').replace(/^\/+|\/+
 const b = (p: string) => BASE.replace(/\/$/, '') + p;
 const root = (p: string) => resolve(__dirname, p);
 
-/** Ersetzt leere HTML-Hüllen durch die vorgerenderte Seite und schreibt robots.txt, sitemap.xml und _headers. */
-function prerenderPages(site: string, analytics: boolean): Plugin {
-  const rules = headerRules(PRERENDERED, analytics);
+/** Ersetzt leere HTML-Hüllen durch die vorgerenderte Seite. */
+function prerenderPages(site: string): Plugin {
   return {
     name: 'weniger-prerender',
     transformIndexHtml: {
       order: 'pre',
       handler: (html, ctx) => prerender(ctx.path, { site, base: single ? '/' : BASE }) ?? html,
     },
+  };
+}
+
+/** Content-Security-Policy als <meta> in jede gebaute Seite (GitHub Pages sendet keine eigenen Header) (nur im Build, der Dev-Server braucht Inline-Skripte). */
+function cspMeta(analytics: boolean): Plugin {
+  const policy = csp(analytics)
+    .split('; ')
+    .filter((d) => !d.startsWith('frame-ancestors'))
+    .join('; ');
+  return {
+    name: 'weniger-csp-meta',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => (single ? html : html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`)),
+    },
+  };
+}
+
+/** robots.txt, sitemap.xml und _headers (Cloudflare Pages, Netlify); vite preview mit denselben Headern. */
+function prerenderExtras(site: string, analytics: boolean): Plugin {
+  const rules = headerRules(PRERENDERED, analytics);
+  return {
+    name: 'weniger-prerender-extras',
     generateBundle() {
       if (single) return;
       const lines = ['User-agent: *', 'Allow: /'];
@@ -111,6 +134,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, 'VITE_');
   // Die öffentliche Adresse kommt nur aus src/config.ts
   const site = PUBLIC_URL.trim().replace(/\/+$/, '');
+  const analytics = !!(env.VITE_CF_ANALYTICS_TOKEN ?? '').trim();
   const pages: Record<string, string> = {
     landing: root('index.html'),
     app: root('app/index.html'),
@@ -122,7 +146,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: BASE,
-    plugins: [react(), prerenderPages(site, !!(env.VITE_CF_ANALYTICS_TOKEN ?? '').trim()), pwaPlugin(), ...(single ? [viteSingleFile()] : [])],
+    plugins: [react(), prerenderPages(site), prerenderExtras(site, analytics), cspMeta(analytics), pwaPlugin(), ...(single ? [viteSingleFile()] : [])],
     define: single ? { 'import.meta.env.VITE_SINGLEFILE': 'true' } : {},
     build: single
       ? { outDir: 'dist-single', emptyOutDir: true, rollupOptions: { input: { app: root('app/index.html') } } }

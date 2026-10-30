@@ -1,9 +1,11 @@
-# Qualität bei jedem Push und Pull Request: Lint, Typen, Unit-Tests, Build mit Grössen-Budget, Playwright (inkl. axe-core).
+# Bei jedem Push und Pull Request: Lint, Typen, Unit-Tests, Build mit Grössen-Budget, Playwright (inkl. axe-core).
+# Auf main zusätzlich: Veröffentlichen auf GitHub Pages, aber nur wenn alle Prüfungen grün sind.
 name: ci
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -27,7 +29,7 @@ jobs:
         run: npm run lint
       - name: Typen
         run: npx tsc -b
-      - name: Unit-Tests (Domain, Store, Migrationen, Import, Sommerzeit, kein scharfes S)
+      - name: Unit-Tests (Rechenlogik, Store, Migrationen, Import, Sommerzeit, kein scharfes S)
         run: npx vitest run
       - name: Build mit Grössen-Budget (size-limit)
         run: npm run build
@@ -43,3 +45,38 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+
+  # Seite für GitHub Pages bauen: mit dem Repo-Namen als Unterordner
+  pages-build:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: qualitaet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Build für GitHub Pages
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  pages-deploy:
+    needs: pages-build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
