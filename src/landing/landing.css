@@ -152,3 +152,23 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* Auf Touch-Geräten scrollt die Seite, nicht die App im Rahmen */
 @media (pointer: coarse) { .phone-frame iframe { pointer-events: none; } }
+
+/* ===== Teil 4: Hero mit Botschaft, Rechner als eigener Abschnitt ===== */
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-ctas .lp-btn { flex: 1 1 auto; }
+.lp-btn.outline { background: transparent; color: var(--primary-ink); box-shadow: inset 0 0 0 1.5px var(--primary); }
+.hero-qr { display: none; margin: 8px 0 0; align-items: center; gap: 16px; }
+.hero-qr svg { width: 120px; height: 120px; border-radius: 14px; box-shadow: var(--shadow); flex: none; }
+.hero-qr figcaption, .final-qr figcaption { font-weight: 600; color: var(--muted); max-width: 18ch; }
+.qr-soon p { margin: 0; width: 120px; height: 120px; display: grid; place-items: center; border-radius: 14px; border: 1.5px dashed var(--line); color: var(--muted); font-weight: 700; text-align: center; }
+@media (min-width: 900px) { .hero-qr { display: flex; } }
+.calc-band { gap: 12px; }
+.calc-band .calc { max-width: 640px; }
+.calc-month { font-weight: 700; color: var(--ink); }
+.calc-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.calc-actions .lp-btn { flex: 1 1 auto; }
+.calc-shared { margin: 0; min-height: 1.2em; color: var(--muted); font-size: 0.875rem; }
+.step img { border-radius: 16px; aspect-ratio: 390 / 680; object-fit: cover; object-position: top; background: var(--surface-2); max-height: 360px; width: 100%; }
+@media (min-width: 1000px) { .features { grid-template-columns: repeat(3, 1fr); } }
+/* Labels in normaler Schreibweise wie in der App */
+.eyebrow, .calc-eyebrow { text-transform: none; letter-spacing: 0; }

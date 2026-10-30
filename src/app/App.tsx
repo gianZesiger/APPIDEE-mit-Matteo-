@@ -52,12 +52,32 @@ function readHash(): Tab {
   }
 }
 
-/** Challenge-Link #c=mate-14: einmal lesen und aus der Adresse entfernen. */
+/** Challenge-Link #challenge=mate-30 (alt: #c=mate-14): einmal lesen und aus der Adresse entfernen. */
 function readChallenge(): ChallengeEntry | null {
   try {
     const c = parseChallenge(location.hash, TEMPLATES.map((x) => x.key));
-    if (location.hash.startsWith('#c=')) history.replaceState(null, '', `${location.pathname}${location.search}`);
+    if (/^#(challenge|c)=/.test(location.hash)) history.replaceState(null, '', `${location.pathname}${location.search}`);
     return c;
+  } catch {
+    return null;
+  }
+}
+
+export type Preset = { templateKey: string; perDay?: number; price?: number };
+
+/** Vom Rechner der Startseite: ?vorlage=mate&menge=1&preis=1.90. Einmal lesen und aus der Adresse entfernen. */
+function readPreset(): Preset | null {
+  try {
+    const params = new URLSearchParams(location.search);
+    const key = params.get('vorlage');
+    if (!key) return null;
+    const num = (v: string | null) => (v && /^\d+(\.\d+)?$/.test(v) ? Number(v) : undefined);
+    const perDay = num(params.get('menge'));
+    const price = num(params.get('preis'));
+    ['vorlage', 'menge', 'preis'].forEach((k) => params.delete(k));
+    const rest = params.toString();
+    history.replaceState(null, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`);
+    return TEMPLATES.some((x) => x.key === key) ? { templateKey: key, perDay, price } : null;
   } catch {
     return null;
   }
@@ -116,14 +136,22 @@ export default function App() {
   const [onboarding, setOnboarding] = useState<boolean | null>(null);
   const [adding, setAdding] = useState(false);
   const [challenge, setChallenge] = useState<ChallengeEntry | null>(null);
+  const [preset, setPreset] = useState<Preset | null>(null);
   const transition = useRef<Promise<unknown> | null>(null);
   const view = onboarding || adding ? 'ob' : tab;
 
   useEffect(() => {
     if (!hydrated || onboarding !== null) return;
     const ch = readChallenge();
+    const pre = readPreset();
     const entry = readEntry();
-    if (ch) {
+    if (pre) {
+      // Werte aus dem Rechner: neue Gewohnheit, vorausgefüllt. Eigene Daten bleiben.
+      setPreset(pre);
+      const empty = useStore.getState().goals.length === 0;
+      setAdding(!empty);
+      setOnboarding(empty);
+    } else if (ch) {
       // Challenge von einem Freund: neue Gewohnheit mit vorgewählter Vorlage, eigene Daten bleiben
       setChallenge(ch);
       const empty = useStore.getState().goals.length === 0;
@@ -244,14 +272,17 @@ export default function App() {
           <Onboarding
             first={!adding}
             challenge={challenge}
+            preset={preset}
             onCancel={() => {
               setAdding(false);
               setChallenge(null);
+              setPreset(null);
             }}
             onDone={() => {
               setOnboarding(false);
               setAdding(false);
               setChallenge(null);
+              setPreset(null);
               go('heute');
             }}
           />

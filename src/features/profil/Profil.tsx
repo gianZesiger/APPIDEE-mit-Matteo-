@@ -167,8 +167,8 @@ export default function Profil() {
         <p className="small muted">{t.aboutText}</p>
         {LEGAL && (
           <p className="small row" style={{ gap: 16 }}>
-            <a href="/datenschutz/">{t.privacy}</a>
-            <a href="/impressum/">{t.imprint}</a>
+            <a href={`${import.meta.env.BASE_URL}datenschutz/`}>{t.privacy}</a>
+            <a href={`${import.meta.env.BASE_URL}impressum/`}>{t.imprint}</a>
           </p>
         )}
       </section>

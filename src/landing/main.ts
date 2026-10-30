@@ -1,10 +1,12 @@
-// Kleines Skript für die Landingpage: Rechner, Installieren-Tabs, QR-Code, optionale Messung.
+// Kleines Skript für die Landingpage: Rechner, Installieren-Tabs, Effekte, optionale Messung.
+// Der QR-Code kommt fertig aus dem Build (aus PUBLIC_URL in src/config.ts).
 // Die Seite ist vorgerendert und funktioniert auch ohne dieses Skript.
 import { landing, things } from '../i18n/de-CH';
 import { presetByKey, yearlyCost } from '../domain/presets';
 import { moneyCompare } from '../domain/compare';
 import { chf } from '../domain/format';
-import { track, initAnalytics } from './analytics';
+import { initAnalytics } from './analytics';
+import { publicLink } from '../config';
 import { fxLevel, initFx, motionOK, subscribeFx } from '../ui/fx-level';
 
 const $ = <T extends Element>(sel: string, root: ParentNode = document) => root.querySelector<T>(sel);
@@ -18,6 +20,11 @@ function setupCalculator() {
   const priceEl = $<HTMLInputElement>('[data-price]', form)!;
   const totalEl = $<HTMLElement>('[data-total]', form)!;
   const compareEl = $<HTMLElement>('[data-compare]', form)!;
+  const monthEl = $<HTMLElement>('[data-month]', form);
+  const yearEl = $<HTMLElement>('[data-year]', form);
+  const startWith = $<HTMLAnchorElement>('[data-start-with]', form);
+  const shareBtn = $<HTMLButtonElement>('[data-share-result]', form);
+  const sharedEl = $<HTMLElement>('[data-shared]', form);
   const perDayLabel = $<HTMLElement>('[data-perday-label]', form)!;
   const priceLabel = $<HTMLElement>('[data-price-label]', form)!;
   const yourEl = $<HTMLElement>('[data-your]');
@@ -27,6 +34,7 @@ function setupCalculator() {
   let shown = yearlyCost(perDay, parseFloat(priceEl.value) || 0);
   let raf = 0;
   let used = false;
+  void used;
 
   const price = () => Math.max(0, Math.min(500, parseFloat(priceEl.value.replace(',', '.')) || 0));
   const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
@@ -56,10 +64,17 @@ function setupCalculator() {
     countTo(total);
     const cmp = moneyCompare(total);
     compareEl.textContent = cmp ? landing.hero.compare(cmp.count, things[cmp.key]) : '';
-    if (interacted && !used) {
-      used = true;
-      track('Rechner benutzt', { gewohnheit: key });
+    if (monthEl) monthEl.textContent = landing.hero.perMonth(chf(total / 12, 0));
+    if (yearEl) yearEl.textContent = landing.hero.perYear(chf(total, 0));
+    // «Mit diesen Werten starten»: die App übernimmt Gewohnheit, Menge und Preis
+    if (startWith) {
+      const url = new URL(startWith.href, location.href);
+      url.searchParams.set('vorlage', key);
+      url.searchParams.set('menge', fmt(perDay));
+      url.searchParams.set('preis', price().toFixed(2));
+      startWith.href = url.pathname + url.search;
     }
+    if (interacted) used = true;
   }
 
   form.addEventListener('change', (e) => {
@@ -86,6 +101,22 @@ function setupCalculator() {
   });
   priceEl.addEventListener('input', () => update(true));
   form.addEventListener('submit', (e) => e.preventDefault());
+
+  // Ergebnis teilen: nur auf Knopfdruck. Web Share, sonst in die Zwischenablage.
+  shareBtn?.addEventListener('click', async () => {
+    const item = landing.calc.find((c) => c.key === key);
+    const text = landing.hero.shareText(item?.chip ?? key, chf(yearlyCost(perDay, price()), 0));
+    const url = publicLink(location.pathname);
+    try {
+      if (navigator.share) await navigator.share({ text, url: url || undefined });
+      else {
+        await navigator.clipboard?.writeText(url ? `${text} ${url}` : text);
+        if (sharedEl) sharedEl.textContent = landing.hero.shared;
+      }
+    } catch {
+      /* abgebrochen */
+    }
+  });
 
   // Die Zahl zählt beim ersten Anzeigen einmal hoch
   if (motionOK() && 'IntersectionObserver' in window) {
@@ -144,32 +175,6 @@ function setupInstall() {
   });
 }
 
-// ---------- QR-Code nur auf grossen Bildschirmen (dort ist das Handy nicht in der Hand) ----------
-
-function setupQr() {
-  const box = $<HTMLElement>('[data-qr-box]');
-  const svg = $<SVGSVGElement>('[data-qr]');
-  if (!box || !svg || !matchMedia('(min-width: 900px)').matches) return;
-  void import('../ui/qr').then(({ qrPath }) => {
-    const qr = qrPath(`${location.origin}/app/`);
-    const m = 2;
-    const n = qr.size + m * 2;
-    svg.setAttribute('viewBox', `${-m} ${-m} ${n} ${n}`);
-    const ns = 'http://www.w3.org/2000/svg';
-    const bg = document.createElementNS(ns, 'rect');
-    bg.setAttribute('x', String(-m));
-    bg.setAttribute('y', String(-m));
-    bg.setAttribute('width', String(n));
-    bg.setAttribute('height', String(n));
-    bg.setAttribute('fill', '#fff');
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', qr.d);
-    path.setAttribute('fill', '#10312f');
-    svg.append(bg, path);
-    box.hidden = false;
-  });
-}
-
 // ---------- Effekte: Kaustik im Hero, Scroll-Reveal, Tilt, Funken ----------
 
 function setupCaustics() {
@@ -209,7 +214,6 @@ function setupEffects() {
 function setupStart() {
   document.querySelectorAll<HTMLAnchorElement>('[data-start]').forEach((a) =>
     a.addEventListener('click', (e) => {
-      track('Starten geklickt');
       // Kurz goldene Funken, dann in die App. Mit Zusatztaste (neuer Tab) oder ohne Bewegung sofort.
       if (!motionOK() || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
@@ -224,7 +228,6 @@ initFx();
 initAnalytics();
 setupCalculator();
 setupInstall();
-setupQr();
 setupStart();
 setupCaustics();
 if ('requestIdleCallback' in window) requestIdleCallback(setupEffects, { timeout: 1500 });

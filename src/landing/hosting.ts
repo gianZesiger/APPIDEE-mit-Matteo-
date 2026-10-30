@@ -7,16 +7,17 @@ export interface HeaderRule {
   headers: Record<string, string>;
 }
 
-/** Nur eigene Quellen. Eine Mess-Adresse (VITE_ANALYTICS_SRC) kommt dazu, wenn sie gesetzt ist. */
-export function csp(extra: string[] = []): string {
-  const plus = extra.length ? ` ${extra.join(' ')}` : '';
+/** Nur eigene Quellen. Mit eingeschalteter Messung zusätzlich Cloudflare Web Analytics (Skript und Meldung). */
+export function csp(analytics = false): string {
+  const script = analytics ? ' https://static.cloudflareinsights.com' : '';
+  const connect = analytics ? ' https://cloudflareinsights.com' : '';
   return [
     "default-src 'self'",
-    `script-src 'self'${plus}`,
+    `script-src 'self'${script}`,
     "style-src 'self'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    `connect-src 'self'${plus}`,
+    `connect-src 'self'${connect}`,
     "frame-src 'self'",
     "frame-ancestors 'self'",
     "worker-src 'self'",
@@ -27,19 +28,10 @@ export function csp(extra: string[] = []): string {
   ].join('; ');
 }
 
-function originOf(src: string): string {
-  try {
-    return src ? new URL(src).origin : '';
-  } catch {
-    return '';
-  }
-}
-
 /** Regeln für alle Seiten: HTML, Service Worker und Manifest immer frisch, gehashte Dateien für immer. */
-export function headerRules(pages: string[], analyticsSrc = ''): HeaderRule[] {
-  const origin = originOf(analyticsSrc);
+export function headerRules(pages: string[], analytics = false): HeaderRule[] {
   const security = {
-    'Content-Security-Policy': csp(origin ? [origin] : []),
+    'Content-Security-Policy': csp(analytics),
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',

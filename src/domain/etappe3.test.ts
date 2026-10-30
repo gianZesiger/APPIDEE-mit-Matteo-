@@ -64,7 +64,8 @@ describe('Teilen-Karte', () => {
 
 describe('Challenge-Link', () => {
   it('liest nur gültige Links', () => {
-    expect(challengeHash('mate', 14)).toBe('#c=mate-14');
+    expect(challengeHash('mate', 30)).toBe('#challenge=mate-30');
+    expect(parseChallenge('#challenge=mate-30', ['mate'])).toEqual({ templateKey: 'mate', days: 30 });
     expect(parseChallenge('#c=mate-14', ['mate'])).toEqual({ templateKey: 'mate', days: 14 });
     expect(parseChallenge('#c=gift-14', ['mate'])).toBeNull();
     expect(parseChallenge('#c=mate-999', ['mate'])).toBeNull();

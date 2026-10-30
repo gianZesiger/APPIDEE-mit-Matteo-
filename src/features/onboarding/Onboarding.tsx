@@ -23,11 +23,14 @@ export default function Onboarding({
   onCancel,
   first,
   challenge,
+  preset,
 }: {
   onDone: () => void;
   onCancel: () => void;
   first: boolean;
   challenge?: { templateKey: string; days: number } | null;
+  /** Werte aus dem Rechner der Startseite */
+  preset?: { templateKey: string; perDay?: number; price?: number } | null;
 }) {
   const addGoal = useStore((s) => s.addGoal);
   const confirmAdult = useStore((s) => s.confirmAdult);
@@ -48,10 +51,17 @@ export default function Onboarding({
   const [secs, setSecs] = useState(0);
   const tilesRef = useRef<HTMLDivElement>(null);
   const challengeTpl = challenge ? TEMPLATES.find((x) => x.key === challenge.templateKey) : undefined;
+  const presetTpl = preset ? TEMPLATES.find((x) => x.key === preset.templateKey) : undefined;
 
   // Challenge-Link: Vorlage ist schon gewählt
   useEffect(() => {
     if (challengeTpl) choose(challengeTpl);
+    else if (presetTpl && preset) {
+      // Vom Rechner: Gewohnheit gewählt, Menge und Preis übernommen (in den erlaubten Grenzen)
+      choose(presetTpl);
+      if (preset.perDay !== undefined) setPerDay(Math.min(PER_DAY_MAX, Math.max(PER_DAY_MIN, preset.perDay)));
+      if (preset.price !== undefined && preset.price <= 100) setPrice(preset.price.toFixed(2));
+    }
     // nur beim ersten Anzeigen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -166,7 +176,7 @@ export default function Onboarding({
           </div>
           {tpl && (
             <p className="tile-year num" aria-live="polite">
-              {tpl.timeBased ? t.tileHours(tpl.name, num(tpl.perDay * 365)) : t.tileYear(tpl.name, chf(yearlyCost(tpl.perDay, tpl.price), 0))}
+              {tpl.timeBased ? t.tileHours(tpl.name, num(perDay * 365)) : t.tileYear(tpl.name, chf(yearlyCost(perDay, priceNum), 0))}
             </p>
           )}
           {needPick && (

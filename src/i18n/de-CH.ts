@@ -212,6 +212,7 @@ export const app = {
     toastSaved: 'Festgehalten. Weiter geht’s.',
     toastMoved: 'Verlangen überstanden. Gut gemacht.',
     toastCorrected: 'Korrigiert.',
+    momentShare: 'Als Karte teilen',
     backupTitle: 'Zeit für eine Sicherung?',
     backupText: 'Deine Einträge liegen nur auf diesem Gerät. Eine Sicherung schützt sie, falls das Handy verloren geht.',
     backupGo: 'Zum Export',
@@ -420,6 +421,7 @@ export const app = {
     challengeDays: 'Wie lange?',
     challengeShare: 'Link teilen',
     challengeCopied: 'Link kopiert.',
+    challengeSoon: 'Der Link folgt, sobald Weniger veröffentlicht ist.',
     challengeMessage: (name: string, days: number, url: string) => `Machst du mit? ${words.days(days)} weniger ${name}, mit der App Weniger: ${url}`,
   },
 
@@ -486,6 +488,7 @@ export const app = {
     text: 'Weniger ist für unterwegs gemacht. Scanne den Code und öffne die App auf deinem Handy, oder probier sie hier im Rahmen aus.',
     points: ['Live sehen, wie viel du sparst', 'Notfall-Knopf, wenn es schwierig wird', 'Alles bleibt auf deinem Gerät'],
     qrAlt: 'QR-Code zur App',
+    linkSoon: 'Link folgt',
   },
 
   milestones: {
@@ -648,13 +651,13 @@ export const legal = {
     text: 'Diese Adresse gibt es nicht. Deine Einträge sind davon nicht betroffen, sie liegen in der App auf deinem Gerät.',
   },
   openApp: 'App öffnen',
-  footer: { privacy: 'Datenschutz', imprint: 'Impressum', help: 'Hilfe: SafeZone.ch und Rauchstopplinie 0848 000 181' },
+  footer: { privacy: 'Datenschutz', imprint: 'Impressum', contact: 'Kontakt', made: 'Ein Projekt von Gian und Matteo aus Bern', help: 'Hilfe: SafeZone.ch und Rauchstopplinie 0848 000 181' },
   imprint: {
     title: 'Impressum',
     description: 'Impressum von Weniger.',
     sections: [
-      { h: 'Verantwortlich', p: [`Name: ${TODO}`, `Adresse: ${TODO}`, `E-Mail: ${TODO}`] },
-      { h: 'Gemacht in Bern', p: ['Weniger ist ein privates Projekt und kostenlos. Es gibt keine Werbung und kein Konto.'] },
+      { h: 'Verantwortlich', p: [`Name: ${TODO}`, `Ort: ${TODO}`, `E-Mail: ${TODO}`] },
+      { h: 'Ein Projekt von Gian und Matteo aus Bern', p: ['Weniger ist ein privates Projekt und kostenlos. Es gibt keine Werbung und kein Konto.'] },
       {
         h: 'Kein Ersatz für Beratung',
         p: [
@@ -670,7 +673,7 @@ export const legal = {
     description: 'Datenschutzerklärung von Weniger: Alles bleibt auf deinem Gerät. Kein Konto, kein Tracking in der App.',
     intro: 'Kurz gesagt: Deine Einträge bleiben auf deinem Gerät. Wir sehen sie nie. Kein Konto, kein Tracking in der App.',
     sections: [
-      { h: 'Verantwortlich', p: [`${TODO} (Name, Adresse, E-Mail wie im Impressum)`] },
+      { h: 'Verantwortlich', p: [`Name: ${TODO}`, `Ort: ${TODO}`, `E-Mail: ${TODO}`] },
       {
         h: 'Deine Daten in der App',
         p: [
@@ -680,17 +683,21 @@ export const legal = {
         ],
       },
       {
-        h: 'Teilen',
-        p: ['Teilen-Karten entstehen auf deinem Gerät. Du siehst vorher genau, was im Bild steht. Ausrutscher, Notizen und Auslöser sind nie darauf. Die App selbst verschickt nichts.'],
+        h: 'Teilen und Challenge-Links',
+        p: [
+          'Teilen-Karten entstehen auf deinem Gerät. Du siehst vorher genau, was im Bild steht. Ausrutscher, Notizen und Auslöser sind nie darauf. Die App selbst verschickt nichts.',
+          'Ein Challenge-Link enthält nur die Gewohnheit und die Anzahl Tage, zum Beispiel «mate-30». Keine Namen, keine Einträge, nichts über dich.',
+        ],
       },
+      { h: 'Keine externen Dienste in der App', p: ['Die App lädt nichts von fremden Servern: keine Werbung, kein Tracking, keine Schriftdienste, keine Karten.'] },
       {
         h: 'Hosting',
-        p: [`Die Website wird bei ${TODO} (Hosting-Anbieter) betrieben. Beim Aufruf verarbeitet der Anbieter technisch nötige Angaben wie IP-Adresse, Zeitpunkt und Browser, um die Seite auszuliefern und vor Missbrauch zu schützen.`],
+        p: [`Die Website wird bei ${TODO} (Hosting-Anbieter) betrieben. Beim Aufruf verarbeitet der Anbieter technisch nötige Angaben wie IP-Adresse, Zeitpunkt und Browser in Server-Protokollen (Logs), um die Seite auszuliefern und vor Missbrauch zu schützen.`],
       },
       {
         h: 'Reichweitenmessung auf der Startseite',
         p: [
-          `Nur auf der Startseite, nicht in der App: Falls eingeschaltet, zählen wir mit ${TODO} (Umami oder Plausible) ohne Cookies, wie oft die Seite aufgerufen, der Rechner benutzt und auf «Kostenlos starten» getippt wird, und über welchen Link Besucherinnen und Besucher kommen. Es entstehen keine Profile.`,
+          'Nur auf der Startseite, nicht in der App, und nur falls eingeschaltet: Cloudflare Web Analytics zählt ohne Cookies, wie oft die Seite aufgerufen wird. Es entstehen keine Profile. Ist die Messung ausgeschaltet, wird nichts gezählt.',
         ],
       },
       { h: 'Schriften', p: ['Die Schriften liegen auf unserem Server. Es gibt keine Verbindung zu Google Fonts oder anderen Schriftdiensten.'] },
@@ -737,6 +744,13 @@ export const landing = {
   nav: { how: 'So funktioniert’s', features: 'Funktionen', faq: 'Fragen', open: 'App öffnen', label: 'Seitennavigation' },
   hero: {
     eyebrow: 'Gratis · ohne Konto · ab 18',
+    title: 'Weniger. Und du siehst, was es bringt.',
+    lead: 'Mate, Snus, Vape, Alkohol oder Social Media: Sieh live, wie viel du sparst. Ohne Konto, deine Daten bleiben auf deinem Handy.',
+    open: 'App öffnen',
+    example: 'Beispiel ansehen',
+    scan: 'Mit dem Handy scannen',
+    linkSoon: 'Link folgt',
+    calcTitle: 'Rechne selbst',
     question: (your: string) => `Was kostet dich ${your} im Jahr?`,
     pick: 'Was möchtest du weniger?',
     perDay: 'pro Tag',
@@ -745,6 +759,12 @@ export const landing = {
     priceCurrency: 'CHF',
     resultLabel: 'Im Jahr',
     resultSpeech: (amount: string) => `Im Jahr ${amount}`,
+    perMonth: (amount: string) => `CHF ${amount} pro Monat`,
+    perYear: (amount: string) => `CHF ${amount} pro Jahr`,
+    startWith: 'Mit diesen Werten starten',
+    shareResult: 'Ergebnis teilen',
+    shareText: (habit: string, year: string) => `${habit} kostet mich rund CHF ${year} im Jahr. Rechne selbst:`,
+    shared: 'Link kopiert.',
     compare: (count: number, thing: [string, string]) => `= ${count === 1 ? thing[0] : `${count} ${thing[1]}`}`,
     note: 'Grobe Startwerte. Passe Menge und Preis an deinen Alltag an.',
     cta: 'Kostenlos starten, ohne Konto',
@@ -756,27 +776,29 @@ export const landing = {
   how: {
     title: 'So funktioniert’s',
     steps: [
-      { h: 'Wählen', p: 'Tipp an, was du weniger möchtest, und gib Menge und Preis ein. Ganz aufhören oder Schritt für Schritt reduzieren.' },
-      { h: 'Zuschauen', p: 'Weniger zählt live mit, wie viel du sparst und wie lange du schon dabei bist. Jede Sekunde.' },
-      { h: 'Dranbleiben', p: 'Kurz einchecken, bei Verlangen den Notfall-Knopf drücken und Meilensteine feiern.' },
+      { img: 'start', h: 'Wählen', p: 'Tipp an, was du weniger möchtest, und gib Menge und Preis ein. Ganz aufhören oder Schritt für Schritt reduzieren.' },
+      { img: 'heute', h: 'Zuschauen', p: 'Weniger zählt live mit, wie viel du sparst und wie viele gute Tage du schon hast.' },
+      { img: 'sos', h: 'Dranbleiben', p: 'Einmal am Tag einchecken. Wenn es schwierig wird: der Notfall-Knopf.' },
     ],
+    alt: (h: string) => `Bildschirm der App beim Schritt «${h}»`,
   },
   features: {
     title: 'Was Weniger kann',
     items: [
-      { img: 'heute', h: 'Live sehen, was du sparst', p: 'Ein Ring, ein Betrag, der mitläuft. Und wie viele Tage du schon dabei bist.' },
-      { img: 'sos', h: 'Schwierig gerade?', p: 'Eine Minute atmen, kurz bewegen, dein Warum lesen oder eine Fachstelle anrufen.' },
-      { img: 'ziele', h: 'Sparziele, die sich füllen', p: 'Laufschuhe, Konzert, Wochenende in den Bergen: dein Gespartes füllt sie der Reihe nach.' },
-      { img: 'sport', h: 'Bewegung statt Verlangen', p: 'Trainings eintragen, Wochenziel sehen, Ruhetage zählen auch. Ohne Druck.' },
+      { img: 'sos', h: 'Notfall-Knopf', p: 'Eine Minute atmen, kurz bewegen, dein Warum lesen oder eine Fachstelle anrufen.' },
+      { img: 'ziele', h: 'Sparziele', p: 'Laufschuhe, Konzert, Wochenende in den Bergen: dein Gespartes füllt sie der Reihe nach.' },
+      { img: 'sport', h: 'Sport', p: 'Trainings eintragen, Wochenziel sehen, Ruhetage zählen auch. Ohne Druck.' },
+      { img: 'rueckblick', h: 'Wochenrückblick', p: 'Am Montag ein kurzer Blick auf die letzte Woche, pro Gewohnheit.' },
+      { img: 'teilen', h: 'Teilen-Karte', p: 'Ein Bild für deine Story, wenn du willst. Du wählst, was draufsteht. Ausrutscher nie.' },
     ],
     alt: (h: string) => `Bildschirm der App: ${h}`,
   },
   trust: {
     title: 'Deine Daten gehören dir',
     points: [
-      'Deine Einträge bleiben auf deinem Gerät. Wir sehen sie nie. Kein Konto, kein Tracking.',
-      'Handy weg = Daten weg, ausser du lädst eine Sicherung herunter.',
-      'Gemacht in Bern.',
+      'Kein Konto. Deine Einträge bleiben auf deinem Gerät, wir sehen sie nie.',
+      'Kein Tracking in der App.',
+      'Für Erwachsene ab 18.',
       'Weniger ist ein Tagebuch, keine Therapie.',
     ],
     helpTitle: 'Hilfe, kostenlos und vertraulich',
@@ -788,13 +810,12 @@ export const landing = {
   faq: {
     title: 'Fragen',
     items: [
-      { q: 'Ist Weniger wirklich gratis?', a: 'Ja. Kein Abo, keine Werbung, kein Konto. Du öffnest die App im Browser und legst los.' },
+      { q: 'Kostet es etwas?', a: 'Nein. Kein Abo, keine Werbung, kein Konto. Du öffnest die App im Browser und legst los.' },
       { q: 'Wo sind meine Daten?', a: 'Nur auf deinem Gerät. Wir haben keinen Server für deine Einträge und sehen sie nie. Im Profil kannst du eine Sicherung als Datei herunterladen.' },
-      { q: 'Muss ich ganz aufhören?', a: 'Nein. Du kannst auch Schritt für Schritt reduzieren. Weniger macht dir einen Wochenplan, zum Beispiel von 4 auf 3, dann 2, dann 1 pro Tag.' },
-      { q: 'Was passiert bei einem Ausrutscher?', a: 'Du hältst ihn fest, wenn du willst. Deine guten Tage bleiben, du fängst nicht bei null an.' },
-      { q: 'Ersetzt Weniger eine Beratung?', a: 'Nein. Weniger ist ein Tagebuch, keine Therapie. Hilfe findest du bei SafeZone.ch und bei der Rauchstopplinie 0848 000 181.' },
-      { q: 'Für wen ist Weniger?', a: 'Für Erwachsene ab 18, die weniger Mate, Snus, Vape, Energy, Zigaretten, Kaffee, Alkohol oder Social Media möchten.' },
-      { q: 'Woher kommen die Preise im Rechner?', a: 'Es sind grobe Startwerte. Passe Menge und Preis an das an, was du wirklich bezahlst.' },
+      { q: 'Was passiert bei einem Ausrutscher?', a: 'Du hältst ihn fest, wenn du willst. Deine guten Tage bleiben, nur die Serie beginnt neu.' },
+      { q: 'Muss ich ganz aufhören?', a: 'Nein. Du kannst auch Schritt für Schritt reduzieren. Weniger macht dir einen Wochenplan, zum Beispiel von 4 auf 3, dann 2, dann 1 pro Tag. Das Ziel wählst du selbst.' },
+      { q: 'Ersetzt die App eine Beratung?', a: 'Nein. Weniger ist ein Tagebuch, keine Therapie. Hilfe findest du kostenlos und vertraulich bei SafeZone.ch und bei der Rauchstopplinie 0848 000 181.' },
+      { q: 'Warum ab 18?', a: 'Weniger ist für Erwachsene gemacht. Für Jugendliche gibt es eigene Angebote, zum Beispiel bei SafeZone.ch.' },
     ],
   },
   install: {
@@ -833,7 +854,7 @@ export const landing = {
       intro: 'Eine Flasche hier, eine dort: Rechne aus, was dich Mate im Jahr kostet, und schau mit Weniger zu, wie dein Erspartes wächst.',
     },
     {
-      slug: 'energy-drink-kosten-rechner',
+      slug: 'energydrink-kosten-rechner',
       preset: 'energy',
       title: 'Energy-Drink-Kosten-Rechner: Was kosten dich Energy Drinks im Jahr? | Weniger',
       description: 'Rechne aus, wie viel Geld du im Jahr für Energy Drinks ausgibst, und sieh mit Weniger live, wie viel du sparst. Gratis, ohne Konto.',

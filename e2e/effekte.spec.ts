@@ -58,9 +58,11 @@ test('Landing: Kaustik im Hero, Zahl zählt hoch, Funken vor dem Start', async (
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-fx', /hoch|mittel/);
   await expect(page.locator('.hero-caustics')).toBeAttached();
+  // Der Rechner zählt hoch, sobald er ins Bild kommt
+  await page.locator('#rechner').scrollIntoViewIfNeeded();
   await expect(page.locator('[data-total]')).toHaveText('694');
   // Nach dem Klick kommen kurz Funken, dann die App
-  await page.getByRole('link', { name: 'Kostenlos starten, ohne Konto' }).first().click();
+  await page.locator('.hero-ctas').getByRole('link', { name: 'App öffnen' }).click();
   await expect(page.locator('.spark-canvas')).toBeAttached();
   await expect(page).toHaveURL(/\/app\/$/);
 });

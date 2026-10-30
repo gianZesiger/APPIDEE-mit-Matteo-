@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { prerender, PRERENDERED } from './src/landing/prerender';
 import { landing, pwa } from './src/i18n/de-CH';
 import { headerRules, headersFile, matches } from './src/landing/hosting';
+import { PUBLIC_URL } from './src/config';
 
 // Mehrseiten-App:
 //   /                          Landingpage (vorgerendert, wenig JavaScript)
@@ -14,17 +15,20 @@ import { headerRules, headersFile, matches } from './src/landing/hosting';
 //   /app/                      die App (React)
 //   /datenschutz/, /impressum/ (vorgerendert, ohne JavaScript)
 // SINGLEFILE=1: nur die App als eine einzige HTML-Datei für die Vorschau.
+// BASE_PATH=/APPIDEE-mit-Matteo-/: Basis-Pfad, wenn die Seite in einem Unterordner liegt (GitHub Pages).
 const single = process.env.SINGLEFILE === '1';
+const BASE = single ? './' : `/${(process.env.BASE_PATH ?? '').replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/');
+const b = (p: string) => BASE.replace(/\/$/, '') + p;
 const root = (p: string) => resolve(__dirname, p);
 
 /** Ersetzt leere HTML-Hüllen durch die vorgerenderte Seite und schreibt robots.txt, sitemap.xml und _headers. */
-function prerenderPages(site: string, analyticsSrc: string): Plugin {
-  const rules = headerRules(PRERENDERED, analyticsSrc);
+function prerenderPages(site: string, analytics: boolean): Plugin {
+  const rules = headerRules(PRERENDERED, analytics);
   return {
     name: 'weniger-prerender',
     transformIndexHtml: {
       order: 'pre',
-      handler: (html, ctx) => prerender(ctx.path, { site }) ?? html,
+      handler: (html, ctx) => prerender(ctx.path, { site, base: single ? '/' : BASE }) ?? html,
     },
     generateBundle() {
       if (single) return;
@@ -34,7 +38,7 @@ function prerenderPages(site: string, analyticsSrc: string): Plugin {
         const urls = PRERENDERED.map((p) => `  <url><loc>${site}${p}</loc></url>`).join('\n');
         this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` });
       } else {
-        this.warn('VITE_SITE_URL ist leer: canonical und OG-Bild sind relativ, keine sitemap.xml. In .env eintragen.');
+        this.warn('PUBLIC_URL in src/config.ts ist leer: canonical und OG-Bild sind relativ, keine sitemap.xml, kein QR-Code.');
       }
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: lines.join('\n') + '\n' });
       this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile(rules) });
@@ -53,7 +57,7 @@ function prerenderPages(site: string, analyticsSrc: string): Plugin {
 /** Installierbare App unter /app/: Manifest, Workbox-Service-Worker mit Update-Hinweis (registerType 'prompt'). */
 function pwaPlugin() {
   const shot = (name: keyof typeof pwa.screenshots, wide = false) => ({
-    src: `/screens/${name}.jpg`,
+    src: b(`/screens/${name}.jpg`),
     sizes: wide ? '1280x800' : '780x1360',
     type: 'image/jpeg',
     form_factor: wide ? ('wide' as const) : ('narrow' as const),
@@ -63,41 +67,41 @@ function pwaPlugin() {
     disable: single,
     registerType: 'prompt',
     injectRegister: false,
-    scope: '/app/',
+    scope: b('/app/'),
     filename: 'sw.js',
     manifestFilename: 'manifest.webmanifest',
     includeManifestIcons: false,
     manifest: {
-      id: '/app/',
+      id: b('/app/'),
       name: pwa.name,
       short_name: pwa.name,
       description: pwa.description,
       lang: 'de-CH',
       dir: 'ltr',
-      start_url: '/app/?quelle=pwa',
-      scope: '/app/',
+      start_url: b('/app/?quelle=pwa'),
+      scope: b('/app/'),
       display: 'standalone',
       orientation: 'portrait',
       background_color: '#e9f2f1',
       theme_color: '#0f7f7f',
       categories: ['health', 'lifestyle', 'finance'],
       icons: [
-        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        { src: b('/icon-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: b('/icon-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: b('/icon-maskable-512.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: b('/icon.svg'), sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
       ],
       screenshots: [shot('heute'), shot('sos'), shot('ziele'), shot('sport'), shot('desktop', true)],
       shortcuts: [
-        { name: pwa.shortcuts.checkin.name, description: pwa.shortcuts.checkin.description, url: '/app/?quelle=kurzbefehl#checkin', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
-        { name: pwa.shortcuts.training.name, description: pwa.shortcuts.training.description, url: '/app/?quelle=kurzbefehl#training', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+        { name: pwa.shortcuts.checkin.name, description: pwa.shortcuts.checkin.description, url: b('/app/?quelle=kurzbefehl#checkin'), icons: [{ src: b('/icon-192.png'), sizes: '192x192' }] },
+        { name: pwa.shortcuts.training.name, description: pwa.shortcuts.training.description, url: b('/app/?quelle=kurzbefehl#training'), icons: [{ src: b('/icon-192.png'), sizes: '192x192' }] },
       ],
     },
     workbox: {
       // Offline: die App mit allen Bausteinen. Landingpage, OG-Bild und Werbebilder brauchen das nicht.
       globPatterns: ['app/index.html', 'assets/*.{js,css,woff2}', 'icon*.{png,svg}', 'apple-touch-icon.png'],
-      navigateFallback: '/app/index.html',
-      navigateFallbackAllowlist: [/^\/app\//],
+      navigateFallback: b('/app/index.html'),
+      navigateFallbackAllowlist: [new RegExp(`^${b('/app/')}`)],
       cleanupOutdatedCaches: true,
     },
   });
@@ -105,7 +109,8 @@ function pwaPlugin() {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, 'VITE_');
-  const site = (env.VITE_SITE_URL ?? '').trim().replace(/\/+$/, '');
+  // Die öffentliche Adresse kommt nur aus src/config.ts
+  const site = PUBLIC_URL.trim().replace(/\/+$/, '');
   const pages: Record<string, string> = {
     landing: root('index.html'),
     app: root('app/index.html'),
@@ -116,8 +121,8 @@ export default defineConfig(({ mode }) => {
   for (const p of landing.pages) pages[p.slug] = root(`${p.slug}/index.html`);
 
   return {
-    base: single ? './' : '/',
-    plugins: [react(), prerenderPages(site, env.VITE_ANALYTICS ? (env.VITE_ANALYTICS_SRC ?? '') : ''), pwaPlugin(), ...(single ? [viteSingleFile()] : [])],
+    base: BASE,
+    plugins: [react(), prerenderPages(site, !!(env.VITE_CF_ANALYTICS_TOKEN ?? '').trim()), pwaPlugin(), ...(single ? [viteSingleFile()] : [])],
     define: single ? { 'import.meta.env.VITE_SINGLEFILE': 'true' } : {},
     build: single
       ? { outDir: 'dist-single', emptyOutDir: true, rollupOptions: { input: { app: root('app/index.html') } } }

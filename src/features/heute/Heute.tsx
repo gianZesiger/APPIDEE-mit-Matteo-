@@ -27,6 +27,8 @@ import { HabitIcon, Ico, UI } from '../../ui/icons';
 const ShareSheet = lazy(() => import('../share/ShareSheet'));
 const t = app.heute;
 const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
+/** Bei diesen Meilensteinen darf eine Teilen-Karte aufgehen (nur auf Knopfdruck). */
+const SHARE_MILESTONES = [7, 30, 100];
 
 export default function Heute({ go }: { go: (t: Tab) => void }) {
   const goals = useStore((s) => s.goals);
@@ -149,9 +151,11 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   const [changing, setChanging] = useState(false);
   const [note, setNoteText] = useState('');
   // Meilenstein-Moment: der Ring füllt sich ganz, ein Satz in Gold
-  const [moment, setMoment] = useState<string | null>(null);
+  const [moment, setMoment] = useState<{ text: string; n: number } | null>(null);
   useEffect(() => {
     if (!moment) return;
+    // Bei 7, 30 und 100 Tagen bleibt der Moment stehen, bis die Person teilt oder weitergeht
+    if (SHARE_MILESTONES.includes(moment.n)) return;
     const id = setTimeout(() => setMoment(null), 3500);
     return () => clearTimeout(id);
   }, [moment]);
@@ -164,7 +168,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
     if (!r.changed) return;
     setMilestones(goal.id, r.keep);
     if (r.celebrate) {
-      if (r.celebrate.kind === 'days') setMoment(celebrationText(r.celebrate));
+      if (r.celebrate.kind === 'days') setMoment({ text: celebrationText(r.celebrate), n: r.celebrate.n });
       else setToast(celebrationText(r.celebrate));
       setTimeout(() => spark(undefined, undefined, { count: 90 }), 120);
     }
@@ -335,9 +339,32 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           {exact ? <LiveExact from={stats.cleanFrom} /> : <span className="tiny muted">{t.exactHint}</span>}
         </Ring>
         {moment && (
-          <p className="moment" role="status">
-            {moment}
-          </p>
+          <div className="moment-box" role="status">
+            <p className="moment">{moment.text}</p>
+            {SHARE_MILESTONES.includes(moment.n) && (
+              <div className="row">
+                <button
+                  className="btn sm outline"
+                  onClick={() => {
+                    const s = app.share;
+                    setShare({
+                      headline: app.milestones.days(moment.n),
+                      options: [
+                        { id: 'days', label: s.showDays, text: s.days(moment.n), tone: 'primary', on: true },
+                        { id: 'habit', label: s.showHabit, text: s.habit(goal.name), tone: 'ink', on: false },
+                      ],
+                    });
+                    setMoment(null);
+                  }}
+                >
+                  {t.momentShare}
+                </button>
+                <button className="btn sm quiet" onClick={() => setMoment(null)}>
+                  {app.common.close}
+                </button>
+              </div>
+            )}
+          </div>
         )}
         <button className="sos-pill" onClick={() => setSheet('sos')}>
           <Ico i={UI.sos} size={18} />

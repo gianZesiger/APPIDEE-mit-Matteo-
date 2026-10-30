@@ -55,7 +55,39 @@ await shot('ziele');
 await tab('Sport');
 await page.getByRole('heading', { level: 1, name: 'Sport' }).waitFor();
 await shot('sport');
+
+// Teilen-Karte: Vorschau im Sheet
+await tab('Heute');
+await page.getByRole('button', { name: 'Teilen', exact: true }).first().click();
+await page.getByRole('dialog').getByRole('img').waitFor();
+await shot('teilen');
+await page.keyboard.press('Escape');
 await ctx.close();
+
+// Wählen: Onboarding mit gewählter Kachel (leerer Speicher, eigener Kontext)
+const ob = await browser.newContext({ viewport: { width: 390, height: 680 }, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'reduce', locale: 'de-CH', timezoneId: 'Europe/Zurich' });
+const obp = await ob.newPage();
+await obp.goto(`${base}/app/`);
+await obp.getByRole('button', { name: /Mate/ }).click();
+await obp.waitForTimeout(400);
+await obp.screenshot({ path: 'public/screens/start.jpg', type: 'jpeg', quality: 72 });
+console.log('public/screens/start.jpg');
+await ob.close();
+
+// Wochenrückblick: an einem Montagmorgen
+const mon = await browser.newContext({ viewport: { width: 390, height: 680 }, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'reduce', locale: 'de-CH', timezoneId: 'Europe/Zurich' });
+const monp = await mon.newPage();
+const monday = new Date(wed);
+monday.setDate(monday.getDate() + ((1 - monday.getDay() + 7) % 7 || 7));
+monday.setHours(9, 0, 0, 0);
+await monp.clock.setFixedTime(monday);
+await monp.goto(`${base}/app/?modus=beispiel`);
+await monp.getByText('Deine letzte Woche').waitFor();
+await monp.addStyleTag({ content: '.banner{display:none!important}' });
+await monp.waitForTimeout(400);
+await monp.screenshot({ path: 'public/screens/rueckblick.jpg', type: 'jpeg', quality: 72 });
+console.log('public/screens/rueckblick.jpg');
+await mon.close();
 
 // Breites Bild für das Manifest (form_factor wide): die App auf dem Computer
 const wide = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'light', reducedMotion: 'reduce', locale: 'de-CH', timezoneId: 'Europe/Zurich' });

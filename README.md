@@ -83,8 +83,9 @@ Der Build schreibt alles, was der Hoster braucht, nach `dist/`, auch `_headers` 
 
 Umgebungsvariablen (beim Hoster oder in `.env`, siehe `.env.example`):
 
-- `VITE_SITE_URL` – öffentliche Adresse, z. B. `https://weniger.example`. Ohne sie sind canonical und OG-Bild relativ und es gibt keine `sitemap.xml`.
-- `VITE_ANALYTICS`, `VITE_ANALYTICS_SRC`, `VITE_ANALYTICS_ID` – optionale Messung auf der Landingpage (Umami oder Plausible). Der Host kommt automatisch in die CSP.
+- Die öffentliche Adresse steht nur in `src/config.ts` (`PUBLIC_URL`). Solange sie leer ist, gibt es keinen QR-Code («Link folgt»), keine `sitemap.xml`, und Challenge-Links lassen sich nicht teilen.
+- `BASE_PATH` – Unterordner beim Bauen, z. B. `/APPIDEE-mit-Matteo-/` für GitHub Pages. Leer: `/`.
+- `VITE_CF_ANALYTICS_TOKEN` – optionale Messung auf der Startseite mit Cloudflare Web Analytics (ohne Cookies). Leer = aus. Cloudflare kommt dann automatisch in die CSP.
 
 ## Vor dem Start ausfüllen
 
@@ -92,8 +93,8 @@ Im Code steht dafür `[[BITTE AUSFÜLLEN]]`:
 
 - Impressum: Name, Adresse, E-Mail
 - Datenschutzerklärung: Hoster, Messdienst (falls genutzt), Stand-Datum
-- `VITE_SITE_URL` (Domain)
-- Messung: `VITE_ANALYTICS*` (oder leer lassen)
+- `PUBLIC_URL` in `src/config.ts` (Adresse der Website)
+- Messung: `VITE_CF_ANALYTICS_TOKEN` (oder leer lassen)
 
 ## Installierbare App
 

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, noHorizontalScroll, test } from './fixtures';
+import { PUBLIC_URL } from '../src/config';
 
 // Feste Uhr und «keine Konsolenfehler» kommen aus fixtures.ts.
 async function tab(page: Page, name: string) {
@@ -199,7 +200,8 @@ test.describe('Desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
   test('links Erklärung und QR-Code, rechts die App im Handy-Rahmen', async ({ page }) => {
     await page.goto('/app/?modus=beispiel');
-    await expect(page.getByRole('img', { name: 'QR-Code zur App' })).toBeVisible();
+    if (PUBLIC_URL) await expect(page.getByRole('img', { name: 'QR-Code zur App' })).toBeVisible();
+    else await expect(page.getByText('Link folgt')).toBeVisible();
     const phone = await page.locator('.phone').boundingBox();
     const nav = await page.getByRole('navigation', { name: 'Hauptnavigation' }).boundingBox();
     expect(phone && nav).toBeTruthy();

@@ -30,7 +30,7 @@ export interface Goal {
   /** Tage, an denen «Stufe verlängern» gedrückt wurde. Jeder hält die laufende Stufe 7 Tage länger. */
   planExtensions?: string[];
   why?: string;
-  /** Challenge von einem Link (#c=mate-14): so viele Tage */
+  /** Challenge von einem Link (#challenge=mate-30): so viele Tage */
   challengeDays?: number;
   createdAt: string;
   updatedAt: string;

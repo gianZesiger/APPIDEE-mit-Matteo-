@@ -7,6 +7,7 @@ import { app, words } from '../../i18n/de-CH';
 import { badgeLabel } from '../shared/celebrate';
 import { HabitIcon, Ico, UI } from '../../ui/icons';
 import { Sheet } from '../../ui/ui';
+import { publicLink } from '../../config';
 
 const t = app.ziele;
 
@@ -178,7 +179,8 @@ export function Challenge({ goals }: { goals: Goal[] }) {
   const [msg, setMsg] = useState<string | null>(null);
   const goal = goals.find((g) => g.id === goalId) ?? goals[0];
   if (!goal) return null;
-  const url = `${location.origin}/app/${challengeHash(goal.templateKey, days)}`;
+  // Nur die öffentliche Adresse aus src/config.ts. Solange sie fehlt, kann kein Link geteilt werden.
+  const url = publicLink(`/app/${challengeHash(goal.templateKey, days)}`);
   const text = t.challengeMessage(goal.name, days, url);
   return (
     <section className="card" aria-labelledby="challenge-h">
@@ -202,8 +204,10 @@ export function Challenge({ goals }: { goals: Goal[] }) {
           </button>
         ))}
       </div>
+      {!url && <p className="small muted">{t.challengeSoon}</p>}
       <button
-        className="btn ghost"
+        className="btn outline"
+        disabled={!url}
         onClick={async () => {
           const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
           if (nav.share) {

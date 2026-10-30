@@ -47,10 +47,11 @@ describe('Hosting-Header (_headers für Cloudflare Pages und Netlify)', () => {
     expect(forPath('/assets/app-abc123.js')['Cache-Control']).toBe('public, max-age=31536000, immutable');
     for (const p of ['/', '/index.html', '/app/', '/impressum/', '/sw.js', '/manifest.webmanifest']) expect(forPath(p)['Cache-Control'], p).toBe('no-cache');
   });
-  it('eine Mess-Adresse kommt nur mit ihrem Ursprung in die CSP', () => {
-    const h = headerRules([], 'https://zaehler.example/script.js')[0].headers['Content-Security-Policy'];
-    expect(h).toContain("script-src 'self' https://zaehler.example;");
-    expect(h).toContain("connect-src 'self' https://zaehler.example;");
+  it('Cloudflare Web Analytics kommt nur in die CSP, wenn die Messung eingeschaltet ist', () => {
+    const on = headerRules([], true)[0].headers['Content-Security-Policy'];
+    expect(on).toContain("script-src 'self' https://static.cloudflareinsights.com;");
+    expect(on).toContain("connect-src 'self' https://cloudflareinsights.com;");
+    expect(headerRules([], false)[0].headers['Content-Security-Policy']).not.toContain('cloudflare');
     expect(csp()).not.toContain('unsafe');
     expect(headersFile(rules)).toMatch(/^\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable$/m);
   });

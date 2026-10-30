@@ -56,3 +56,37 @@ describe('Landingpage vorgerendert', () => {
     expect(page('/')).not.toMatch(/<script>(?!.*ld\+json)/);
   });
 });
+
+describe('Teil 4: Startseite', () => {
+  it('Hero mit Botschaft, zwei Knöpfen und dem Rechner darunter (Monat und Jahr)', () => {
+    const html = page('/');
+    expect(html).toContain('<h1 id="hero-h">Weniger. Und du siehst, was es bringt.</h1>');
+    expect(html).toContain('>App öffnen</a>');
+    expect(html).toContain('>Beispiel ansehen</a>');
+    expect(html).toContain('CHF 58 pro Monat');
+    expect(html).toContain('CHF 694 pro Jahr');
+    expect(html).toContain('?vorlage=mate&amp;menge=1&amp;preis=1.90');
+    expect(html).toContain('Ein Projekt von Gian und Matteo aus Bern');
+  });
+
+  it('QR-Code nur mit öffentlicher Adresse, sonst «Link folgt»', () => {
+    expect(page('/')).toContain('aria-label="QR-Code zur App"');
+    const without = prerender('/', { site: '' })!;
+    expect(without).not.toContain('aria-label="QR-Code zur App"');
+    expect(without).toContain('Link folgt');
+  });
+
+  it('auf GitHub Pages: alle internen Links mit dem Unterordner', () => {
+    const html = prerender('/', { site: '', base: '/APPIDEE-mit-Matteo-/' })!;
+    expect(html).toContain('href="/APPIDEE-mit-Matteo-/app/"');
+    expect(html).toContain('href="/APPIDEE-mit-Matteo-/datenschutz/"');
+    expect(html).toContain('src="/APPIDEE-mit-Matteo-/app/?modus=beispiel&amp;rahmen=1"');
+    expect(html).not.toMatch(/href="\/app\//);
+  });
+
+  it('FAQ mit den sechs Fragen, als FAQPage-Daten', () => {
+    const qs = landing.faq.items.map((f) => f.q);
+    expect(qs).toEqual(['Kostet es etwas?', 'Wo sind meine Daten?', 'Was passiert bei einem Ausrutscher?', 'Muss ich ganz aufhören?', 'Ersetzt die App eine Beratung?', 'Warum ab 18?']);
+    expect(landing.pages.map((p) => p.slug)).toContain('energydrink-kosten-rechner');
+  });
+});

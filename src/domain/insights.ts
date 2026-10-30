@@ -124,16 +124,17 @@ export function shareContent(i: ShareInput): ShareContent {
   };
 }
 
-// ---------- Challenge per Link (#c=mate-14), ohne Server ----------
+// ---------- Challenge per Link (#challenge=mate-30), ohne Server ----------
 
 export const CHALLENGE_DAYS = [7, 14, 30];
 
 export function challengeHash(templateKey: string, days: number): string {
-  return `#c=${encodeURIComponent(templateKey)}-${Math.round(days)}`;
+  return `#challenge=${encodeURIComponent(templateKey)}-${Math.round(days)}`;
 }
 
 export function parseChallenge(hash: string, validKeys: string[]): { templateKey: string; days: number } | null {
-  const m = /^#c=([a-z]+)-(\d{1,3})$/.exec(hash.trim());
+  // Auch die alte Kurzform #c=mate-14 von früheren Links
+  const m = /^#(?:challenge|c)=([a-z]+)-(\d{1,3})$/.exec(hash.trim());
   if (!m) return null;
   const days = Number(m[2]);
   if (!validKeys.includes(m[1]) || days < 1 || days > 365) return null;
