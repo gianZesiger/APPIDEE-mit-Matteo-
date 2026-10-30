@@ -237,7 +237,7 @@ function EditSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
           onChange={(e) => setStart(e.target.value)}
         />
         <span id="ed-startDay-msg" className={check.errors.startDay ? 'field-error' : 'tiny muted'} role={check.errors.startDay ? 'alert' : undefined}>
-          {check.errors.startDay ?? check.warnings.startDay ?? ''}
+          {check.errors.startDay ?? (start !== startDayOf(goal) ? check.warnings.startDay : '') ?? ''}
         </span>
       </div>
       <button className="btn primary block" onClick={save}>

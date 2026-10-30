@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motionOK } from './fx-level';
 
 export function useNow(intervalMs = 1000): Date {
@@ -172,7 +173,9 @@ export function Sheet({ onClose, children, label, quiet }: { onClose: () => void
       prev?.focus?.({ preventScroll: true });
     };
   }, []);
-  return (
+  // Als Portal an die App: sonst fängt ein Eltern-Element mit transform (Tilt) das fixe Sheet ein
+  const host = typeof document !== 'undefined' ? (document.querySelector('.app') ?? document.body) : null;
+  const sheet = (
     <div className="sheet-back" onClick={onClose}>
       <div ref={ref} className={`sheet ${quiet ? 'quiet' : ''}`} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
         <div className="grab" />
@@ -180,6 +183,7 @@ export function Sheet({ onClose, children, label, quiet }: { onClose: () => void
       </div>
     </div>
   );
+  return host ? createPortal(sheet, host) : sheet;
 }
 
 /** Kurze Meldung unten. Mit Aktion (z.B. «Rückgängig») bleibt sie etwas länger stehen. */
