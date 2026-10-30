@@ -22,6 +22,9 @@ export const PERSISTED_KEYS = [
   'fxLevel',
   'weeklyReview',
   'reviewSeen',
+  'lastBackup',
+  'backupSnoozed',
+  'installHintSeen',
 ] as const;
 
 const arr = (v: unknown) => (Array.isArray(v) ? v : []);

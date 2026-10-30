@@ -85,10 +85,10 @@ describe('Bekannter Fehler 7: Sheets mit Startfokus, Fokusfalle und Fokus zurüc
     opener.focus();
     fireEvent.click(opener);
     expect(document.activeElement?.textContent).toBe('Erster');
-    // Tab auf dem letzten Element springt zum ersten
+    // Tab auf dem letzten Element springt zum ersten: dem sichtbaren Schliessen-Knopf
     screen.getByText('Letzter').focus();
     fireEvent.keyDown(window, { key: 'Tab' });
-    expect(document.activeElement?.textContent).toBe('Erster');
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Schliessen');
     // Shift+Tab auf dem ersten springt zum letzten
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(document.activeElement?.textContent).toBe('Letzter');

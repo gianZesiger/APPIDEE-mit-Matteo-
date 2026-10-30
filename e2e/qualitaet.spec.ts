@@ -163,3 +163,41 @@ test.describe('Installierbare App', () => {
     await context.setOffline(false);
   });
 });
+
+test('Dialoge: sichtbarer Schliessen-Knopf, Hintergrund inert, Zurück-Taste schliesst zuerst den Dialog', async ({ page }) => {
+  await page.goto('/app/?modus=beispiel');
+  await expect(page.getByText('Bisher gespart')).toBeVisible();
+  await nav(page).getByText('Sport', { exact: true }).click();
+  await expect(page).toHaveTitle('Sport · Weniger');
+  await page.getByRole('button', { name: 'Training eintragen', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Schliessen' })).toBeVisible();
+  expect(await page.locator('main').evaluate((m) => m.closest('[inert]') !== null || m.hasAttribute('inert'))).toBe(true);
+  await page.goBack();
+  await expect(dialog).toBeHidden();
+  // Weiter in der App: der Tab bleibt, erst das nächste «Zurück» geht zum vorherigen Tab
+  await expect(page.getByRole('heading', { level: 1, name: 'Sport' })).toBeVisible();
+  expect(await page.locator('main').evaluate((m) => m.hasAttribute('inert'))).toBe(false);
+  await page.goBack();
+  await expect(page).toHaveTitle('Heute · Weniger');
+  await page.getByRole('button', { name: /Schwierig gerade\?/ }).click();
+  await dialog.getByRole('button', { name: 'Schliessen' }).click();
+  await expect(dialog).toBeHidden();
+  // Kein Dialog-Eintrag bleibt im Verlauf zurück
+  await expect(page).toHaveURL(/\/app\/(#heute)?$/);
+  expect(await page.evaluate(() => history.state?.sheet)).toBeUndefined();
+});
+
+test('Nach dem Tab-Wechsel liegt der Fokus auf der Überschrift; Gewohnheiten wechseln mit Pfeiltasten', async ({ page }) => {
+  await page.goto('/app/?modus=beispiel');
+  await expect(page.getByText('Bisher gespart')).toBeVisible();
+  await nav(page).getByText('Ziele', { exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ziele' })).toBeFocused();
+  await nav(page).getByText('Heute', { exact: true }).click();
+  const mate = page.getByRole('tab', { name: /Mate/ });
+  await mate.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: /Kaffee/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /Kaffee/ })).toBeFocused();
+  await expect(mate).toHaveAttribute('tabindex', '-1');
+});

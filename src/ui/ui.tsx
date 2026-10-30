@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motionOK } from './fx-level';
+import { app } from '../i18n/de-CH';
 
 export function useNow(intervalMs = 1000): Date {
   const [now, setNow] = useState(() => new Date());
@@ -143,13 +144,16 @@ export function CountUp({ value, format, duration = 600 }: { value: number; form
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), textarea, select, a[href], [tabindex]:not([tabindex="-1"])';
 
-export function Sheet({ onClose, children, label, quiet }: { onClose: () => void; children: ReactNode; label: string; quiet?: boolean }) {
+/** Dialog von unten. Schliessen-Knopf sichtbar, Esc und Zurück-Taste schliessen, Hintergrund inert, Fokus bleibt drin. */
+export function Sheet({ onClose, children, label, quiet, closeLabel = app.common.close }: { onClose: () => void; children: ReactNode; label: string; quiet?: boolean; closeLabel?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>(FOCUSABLE);
+    // Startfokus auf das erste Element im Inhalt, der Schliessen-Knopf bleibt per Tab erreichbar
+    const all = Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
+    const first = all.find((el) => !el.classList.contains('sheet-close')) ?? all[0];
     first?.focus({ preventScroll: true });
     const k = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close.current();
@@ -168,9 +172,38 @@ export function Sheet({ onClose, children, label, quiet }: { onClose: () => void
       }
     };
     window.addEventListener('keydown', k);
+
+    // Hintergrund ist inert: nicht erreichbar mit Tab, Klick oder Screenreader
+    const back = ref.current?.parentElement;
+    const host = back?.parentElement;
+    const others = [...(host?.children ?? []), ...document.querySelectorAll('.desk-aside')].filter((el) => el !== back && !el.hasAttribute('inert'));
+    others.forEach((el) => el.setAttribute('inert', ''));
+
+    // Die Zurück-Taste (Android) schliesst zuerst den Dialog statt die App
+    const id = Math.random().toString(36).slice(2);
+    try {
+      history.pushState({ ...(history.state ?? {}), sheet: id }, '');
+    } catch {
+      /* eingebettet: ohne Verlauf */
+    }
+    const onPop = () => {
+      if (history.state?.sheet !== id) close.current();
+    };
+    window.addEventListener('popstate', onPop);
+
     return () => {
       window.removeEventListener('keydown', k);
+      window.removeEventListener('popstate', onPop);
+      others.forEach((el) => el.removeAttribute('inert'));
       prev?.focus?.({ preventScroll: true });
+      // Geschlossen per Knopf: den eigenen Verlaufseintrag wieder entfernen
+      setTimeout(() => {
+        try {
+          if (history.state?.sheet === id) history.back();
+        } catch {
+          /* egal */
+        }
+      }, 0);
     };
   }, []);
   // Als Portal an die App: sonst fängt ein Eltern-Element mit transform (Tilt) das fixe Sheet ein
@@ -178,7 +211,14 @@ export function Sheet({ onClose, children, label, quiet }: { onClose: () => void
   const sheet = (
     <div className="sheet-back" onClick={onClose}>
       <div ref={ref} className={`sheet ${quiet ? 'quiet' : ''}`} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
-        <div className="grab" />
+        <div className="sheet-head">
+          <div className="grab" />
+          <button className="sheet-close" aria-label={closeLabel} onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
         {children}
       </div>
     </div>

@@ -71,7 +71,7 @@ export default function Sport() {
         <h2 className="sr-only">{t.last7}</h2>
         <Ring progress={progress} size={250} stroke={18} tone="moss" label={t.last7} valueText={`${words.minutes(st.last7.minutes)} ${t.ofGoal(goalMin)}`}>
           <span className="eyebrow">{t.last7}</span>
-          <span className="hero-money num" style={{ fontSize: 54 }} aria-hidden="true">
+          <span className="hero-money num" style={{ fontSize: '3.375rem' }} aria-hidden="true">
             <CountUpInline value={st.last7.minutes} />
           </span>
           <span className="small muted" aria-hidden="true">
@@ -105,12 +105,12 @@ export default function Sport() {
 
       {firstGoal && st.sinceQuit > 0 && (
         <section className="card flat reveal row" style={{ gap: 14 }}>
-          <span style={{ fontSize: 34 }} className="float" aria-hidden="true">
+          <span style={{ fontSize: '2.125rem' }} className="float" aria-hidden="true">
             {firstGoal.emoji}
           </span>
           <div>
             <span className="eyebrow">{t.sinceQuit(firstGoal.name)}</span>
-            <p className="strong" style={{ fontSize: 18 }}>
+            <p className="strong" style={{ fontSize: '1.125rem' }}>
               {t.sinceQuitText(st.sinceQuit, st.cravingsSinceQuit)}
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function Sport() {
           { v: words.minutesLong(st.bestWeek), l: t.bestWeek, e: '🏔️' },
         ].map((x) => (
           <div key={x.l} className="card tilt record">
-            <span aria-hidden="true" style={{ fontSize: 20 }}>
+            <span aria-hidden="true" style={{ fontSize: '1.25rem' }}>
               {x.e}
             </span>
             <span className="num record-v">{x.v}</span>
@@ -305,7 +305,7 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
   return (
     <Sheet onClose={onClose} label={t.sheetTitle}>
       <div className="row between">
-        <h2 style={{ fontSize: 24 }}>{t.sheetTitle}</h2>
+        <h2 style={{ fontSize: '1.5rem' }}>{t.sheetTitle}</h2>
         {last && (
           <button
             className="btn sm ghost"
@@ -341,9 +341,9 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
           <button aria-label={t.minus5} onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={{ width: 52, height: 52 }}>
             −
           </button>
-          <span className="val num" style={{ fontSize: 52 }} aria-live="polite">
+          <span className="val num" style={{ fontSize: '3.25rem' }} aria-live="polite">
             {minutes}
-            <span style={{ fontSize: 18 }}> {t.minutesUnit(minutes)}</span>
+            <span style={{ fontSize: '1.125rem' }}> {t.minutesUnit(minutes)}</span>
           </span>
           <button aria-label={t.plus5} onClick={() => setMinutes((m) => Math.min(600, m + 5))} style={{ width: 52, height: 52 }}>
             +
@@ -402,7 +402,7 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
             <div className="grid4">
               {FEEL.map((f) => (
                 <button key={f.v} className={`option feel ${feel === f.v ? 'on' : ''}`} aria-pressed={feel === f.v} onClick={() => setFeel(feel === f.v ? undefined : f.v)}>
-                  <span style={{ fontSize: 22 }} aria-hidden="true">
+                  <span style={{ fontSize: '1.375rem' }} aria-hidden="true">
                     {f.e}
                   </span>
                   <span className="tiny">{t.feelings[f.v]}</span>

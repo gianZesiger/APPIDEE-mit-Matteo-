@@ -344,12 +344,12 @@ export default function Onboarding({
       {step === 4 && (
         <div className="started">
           <Ring progress={1} size={220}>
-            <span style={{ fontSize: 44 }} className="float" aria-hidden="true">
+            <span style={{ fontSize: '2.75rem' }} className="float" aria-hidden="true">
               {tpl?.emoji}
             </span>
           </Ring>
-          <h1 style={{ fontSize: 30 }}>{t.startedTitle}</h1>
-          <p className="num" style={{ fontSize: 22, fontWeight: 700 }}>
+          <h1 style={{ fontSize: '1.875rem' }}>{t.startedTitle}</h1>
+          <p className="num" style={{ fontSize: '1.375rem', fontWeight: 700 }}>
             {t.startedSince(words.seconds(secs + 1))}
           </p>
           <p className="muted">{t.startedNote}</p>

@@ -38,6 +38,12 @@ interface State {
   /** Montag der Woche, deren Rückblick schon gesehen wurde */
   reviewSeen: string;
   sportGoalMin: number;
+  /** Tag der letzten Sicherung (Export), für die Erinnerung alle 14 Tage */
+  lastBackup: string;
+  /** «Später» bei der Sicherungs-Erinnerung */
+  backupSnoozed: string;
+  /** Installations-Hinweis schon gezeigt und weggeklickt */
+  installHintSeen: boolean;
   /** Effektstufe aus dem Profil; «auto» entscheidet das Gerät */
   fxLevel: FxChoice;
   adultConfirmed: boolean;
@@ -84,6 +90,9 @@ interface State {
   restoreWorkout: (w: Workout) => void;
   setSportGoal: (m: number) => void;
   setFxLevel: (v: FxChoice) => void;
+  markBackup: () => void;
+  snoozeBackup: () => void;
+  dismissInstall: () => void;
   addCraving: (level?: number) => void;
   /** Prüft eine Sicherung und liefert eine Vorschau, ohne etwas zu ändern. */
   previewImport: (json: string) => Promise<ImportPreview>;
@@ -109,6 +118,9 @@ const initial = () => ({
   reviewSeen: '',
   adultConfirmed: false,
   sportGoalMin: 150,
+  lastBackup: '',
+  backupSnoozed: '',
+  installHintSeen: false,
   fxLevel: 'auto' as FxChoice,
 });
 
@@ -122,7 +134,6 @@ export const useStore = create<State>()(
         const id = uid();
         const now = new Date().toISOString();
         set((s) => ({ goals: [...s.goals, { ...g, id, createdAt: now, updatedAt: now }], activeGoalId: id }));
-        if (!get().demo) void requestPersistence();
         return id;
       },
       updateGoal: (id, patch) =>
@@ -175,13 +186,19 @@ export const useStore = create<State>()(
         set((s) => ({
           goals: s.goals.map((g) => (g.id === id ? { ...g, planExtensions: extendStage(g, dayKey(new Date())), updatedAt: new Date().toISOString() } : g)),
         })),
-      checkIn: (mood) =>
+      checkIn: (mood) => {
+        // Nach dem ersten Check-in den Browser bitten, die Daten nicht von selbst zu löschen
+        if (get().checkins.length === 0 && !get().demo) void requestPersistence();
         set((s) => {
           const day = dayKey(new Date());
           const prev = s.checkins.find((c) => c.day === day);
           const rest = s.checkins.filter((c) => c.day !== day);
           return { checkins: [...rest, { id: prev?.id ?? uid(), day, mood, note: prev?.note }] };
-        }),
+        });
+      },
+      markBackup: () => set({ lastBackup: dayKey(new Date()) }),
+      snoozeBackup: () => set({ backupSnoozed: dayKey(new Date()) }),
+      dismissInstall: () => set({ installHintSeen: true }),
       setNote: (note) =>
         set((s) => {
           const day = dayKey(new Date());

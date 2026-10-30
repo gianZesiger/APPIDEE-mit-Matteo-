@@ -87,6 +87,7 @@ export const things: Record<string, [string, string]> = {
 
 export const app = {
   name: 'Weniger',
+  docTitle: (tab: string) => `${tab} · Weniger`,
   nav: { label: 'Hauptnavigation', heute: 'Heute', sport: 'Sport', ziele: 'Ziele', profil: 'Profil' },
   common: {
     back: 'Zurück',
@@ -208,6 +209,15 @@ export const app = {
     toastSaved: 'Festgehalten. Weiter geht’s.',
     toastMoved: 'Verlangen überstanden. Gut gemacht.',
     toastCorrected: 'Korrigiert.',
+    backupTitle: 'Zeit für eine Sicherung?',
+    backupText: 'Deine Einträge liegen nur auf diesem Gerät. Eine Sicherung schützt sie, falls das Handy verloren geht.',
+    backupGo: 'Zum Export',
+    later: 'Später',
+    installTitle: 'Weniger als App',
+    installText: 'Dann startet Weniger wie eine App, auch offline.',
+    installIos: 'Tippe unten auf «Teilen» und dann auf «Zum Home-Bildschirm».',
+    installButton: 'Installieren',
+    installLater: 'Nicht jetzt',
     challenge: (left: number, total: number) => `Challenge: noch ${words.days(left)} von ${total}`,
     challengeDone: 'Challenge geschafft.',
   },
@@ -244,7 +254,8 @@ export const app = {
     plans: 'Wenn-dann-Pläne',
     plansHint: 'Was du dir vorgenommen hast',
     help: 'Fachstelle',
-    helpHint: 'Reden hilft. Kostenlos und vertraulich.',
+    helpHint: 'Reden kann entlasten. Kostenlos und vertraulich.',
+    helpCall: (name: string, phone: string) => `${name} anrufen: ${phone}`,
     moveNote: 'Kurze Bewegung kann das Verlangen im Moment dämpfen. Probier es aus und schau, wie es dir danach geht.',
     noWhy: 'Du hast noch kein Warum notiert. Du kannst es in «Ziele» bei deiner Gewohnheit eintragen.',
     noPlans: 'Noch keine Wenn-dann-Pläne. Leg einen in «Ziele» an.',

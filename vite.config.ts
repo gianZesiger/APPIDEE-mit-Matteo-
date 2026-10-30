@@ -28,7 +28,7 @@ function prerenderPages(site: string, analyticsSrc: string): Plugin {
     },
     generateBundle() {
       if (single) return;
-      const lines = ['User-agent: *', 'Allow: /', 'Disallow: /app/'];
+      const lines = ['User-agent: *', 'Allow: /'];
       if (site) {
         lines.push(`Sitemap: ${site}/sitemap.xml`);
         const urls = PRERENDERED.map((p) => `  <url><loc>${site}${p}</loc></url>`).join('\n');

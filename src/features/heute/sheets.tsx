@@ -22,7 +22,7 @@ export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; go
   return (
     <Sheet onClose={onClose} label={t.heute.slipLink} quiet>
       <span className="eyebrow">{t.slip.eyebrow}</span>
-      <h2 style={{ fontSize: 28 }}>{t.slip.title}</h2>
+      <h2 style={{ fontSize: '1.75rem' }}>{t.slip.title}</h2>
       <p>
         {t.slip.text} <strong>{t.slip.keep(goodDays)}</strong>
       </p>
@@ -32,7 +32,7 @@ export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; go
           <button aria-label={t.common.less} onClick={() => setUnits((u) => Math.max(1, u - 1))} style={{ width: 52, height: 52 }}>
             −
           </button>
-          <span className="val num" style={{ fontSize: 48 }}>
+          <span className="val num" style={{ fontSize: '3rem' }}>
             {units}
           </span>
           <button aria-label={t.common.more} onClick={() => setUnits((u) => Math.min(500, u + 1))} style={{ width: 52, height: 52 }}>
@@ -83,14 +83,14 @@ export function DaySheet({ goal, day, units, onClose, onSaved }: { goal: Goal; d
   return (
     <Sheet onClose={onClose} label={words.date(day)} quiet>
       <span className="eyebrow">{goal.name}</span>
-      <h2 style={{ fontSize: 26 }}>{t.dayEdit.title(words.date(day))}</h2>
+      <h2 style={{ fontSize: '1.625rem' }}>{t.dayEdit.title(words.date(day))}</h2>
       <div className="card flat" style={{ alignItems: 'center' }}>
         <span className="small muted">{t.dayEdit.howMany(goal.unit)}</span>
         <div className="stepper">
           <button aria-label={t.common.less} onClick={() => setN((u) => Math.max(0, +(u - step).toFixed(1)))} style={{ width: 52, height: 52 }}>
             −
           </button>
-          <span className="val num" style={{ fontSize: 48 }} aria-live="polite">
+          <span className="val num" style={{ fontSize: '3rem' }} aria-live="polite">
             {fmt(n)}
           </span>
           <button aria-label={t.common.more} onClick={() => setN((u) => Math.min(200, +(u + step).toFixed(1)))} style={{ width: 52, height: 52 }}>
@@ -122,7 +122,7 @@ const MOVE_SECONDS: Record<string, number[]> = {
   draussen: [30, 120, 30],
 };
 
-type SosMode = null | 'atmen' | 'bewegen' | 'warum' | 'plaene' | 'hilfe';
+type SosMode = null | 'atmen' | 'bewegen' | 'warum' | 'plaene';
 
 /** Notfall: «Schwierig gerade?» Ruhig gehalten, ohne Effekte. */
 export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClose: () => void; onSlip?: () => void; onMoved: () => void }) {
@@ -144,11 +144,11 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
       {!mode && (
         <>
           <span className="eyebrow">{t.sos.eyebrow}</span>
-          <h2 style={{ fontSize: 28 }}>{t.sos.title}</h2>
+          <h2 style={{ fontSize: '1.75rem' }}>{t.sos.title}</h2>
           <div className="grid2">
             {options.map((o) => (
               <button key={o.m} className="card pick" onClick={() => setMode(o.m)}>
-                <span style={{ fontSize: 30 }} aria-hidden="true">
+                <span style={{ fontSize: '1.875rem' }} aria-hidden="true">
                   {o.e}
                 </span>
                 <strong>{o.title}</strong>
@@ -156,10 +156,15 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
               </button>
             ))}
           </div>
-          <button className="sos-help" onClick={() => setMode('hilfe')}>
+          {/* Fachstelle als echte Links: direkt zu SafeZone.ch oder anrufen */}
+          <div className="sos-help">
             <strong>{t.sos.help}</strong>
             <span className="small muted">{t.sos.helpHint}</span>
-          </button>
+            <a href="https://www.safezone.ch" target="_blank" rel="noreferrer">
+              {t.profil.safezone}
+            </a>
+            <a href={`tel:${t.profil.stoplinePhone.replace(/\s/g, '')}`}>{t.sos.helpCall(t.profil.stopline, t.profil.stoplinePhone)}</a>
+          </div>
           {onSlip && (
             <button className="btn quiet" onClick={onSlip}>
               {t.heute.slipLink}
@@ -191,35 +196,6 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
           {back}
         </>
       )}
-      {mode === 'hilfe' && (
-        <>
-          <span className="eyebrow">{t.sos.help}</span>
-          <p>{t.profil.helpText}</p>
-          <div className="list">
-            <div className="list-row">
-              <div style={{ minWidth: 0 }}>
-                <strong>{t.profil.safezone}</strong>
-                <p className="tiny muted">{t.profil.safezoneText}</p>
-              </div>
-              <a className="btn sm ghost" href="https://www.safezone.ch" target="_blank" rel="noreferrer">
-                {t.profil.open}
-              </a>
-            </div>
-            <div className="list-row">
-              <div style={{ minWidth: 0 }}>
-                <strong>{t.profil.stopline}</strong>
-                <p className="tiny muted">
-                  <span className="selectable">{t.profil.stoplinePhone}</span> · {t.profil.stoplineWeb}
-                </p>
-              </div>
-              <a className="btn sm ghost" href={`tel:${t.profil.stoplinePhone.replace(/\s/g, '')}`}>
-                {t.profil.phone}
-              </a>
-            </div>
-          </div>
-          {back}
-        </>
-      )}
       {mode === 'atmen' && <Breathe onClose={onClose} />}
       {mode === 'bewegen' && (
         <Move
@@ -238,7 +214,7 @@ export function SosSheet({ goal, onClose, onSlip, onMoved }: { goal: Goal; onClo
 function CravingRating({ value, onChange }: { value: number | null; onChange: (n: number) => void }) {
   return (
     <>
-      <h2 style={{ fontSize: 24 }}>{t.move.craving}</h2>
+      <h2 style={{ fontSize: '1.5rem' }}>{t.move.craving}</h2>
       <div className="row" style={{ justifyContent: 'space-between' }} role="radiogroup" aria-label={t.move.craving}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button key={n} role="radio" aria-checked={value === n} className={`dchip ${value === n ? 'on' : ''}`} style={{ flex: 1 }} onClick={() => onChange(n)}>
@@ -328,7 +304,7 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
     return (
       <>
         <span className="eyebrow">{t.sos.move}</span>
-        <h2 style={{ fontSize: 26 }}>{t.move.where}</h2>
+        <h2 style={{ fontSize: '1.625rem' }}>{t.move.where}</h2>
         <div className="grid3">
           {(
             [
@@ -338,7 +314,7 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
             ] as const
           ).map(([k, e]) => (
             <button key={k} className="option place" onClick={() => setKind(k)}>
-              <span style={{ fontSize: 28 }} aria-hidden="true">
+              <span style={{ fontSize: '1.75rem' }} aria-hidden="true">
                 {e}
               </span>
               {t.move.places[k]}
@@ -355,13 +331,13 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
         <span className="eyebrow">{t.move.step(step + 1, seq.length)}</span>
         <div style={{ display: 'grid', placeItems: 'center' }}>
           <Ring progress={doneS / totalS} size={230} stroke={12} tone="moss">
-            <strong className="num" style={{ fontSize: 48 }}>
+            <strong className="num" style={{ fontSize: '3rem' }}>
               {left}
             </strong>
             <span className="small muted">{t.move.seconds}</span>
           </Ring>
         </div>
-        <h2 style={{ fontSize: 24, textAlign: 'center' }}>{seq[Math.min(step, seq.length - 1)].text}</h2>
+        <h2 style={{ fontSize: '1.5rem', textAlign: 'center' }}>{seq[Math.min(step, seq.length - 1)].text}</h2>
         <button className="btn ghost block" onClick={onClose}>
           {t.common.cancel}
         </button>

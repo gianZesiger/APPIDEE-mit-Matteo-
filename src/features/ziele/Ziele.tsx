@@ -40,7 +40,7 @@ export default function Ziele({ goNew, goToday }: { goNew: () => void; goToday: 
 
       <section className="card" style={{ gap: 6 }}>
         <span className="eyebrow">{t.total}</span>
-        <div className="hero-money num" style={{ fontSize: 44 }}>
+        <div className="hero-money num" style={{ fontSize: '2.75rem' }}>
           <span className="cur" aria-hidden="true">
             {app.common.chf}
           </span>
@@ -77,7 +77,7 @@ function HabitCard({ goal, goodDays, saved, avoided, best, goToday }: { goal: Go
         }}
       >
         <span className="row">
-          <span style={{ fontSize: 30 }} aria-hidden="true">
+          <span style={{ fontSize: '1.875rem' }} aria-hidden="true">
             {goal.emoji}
           </span>
           <span className="stack-2">
@@ -190,7 +190,7 @@ function EditSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
 
   return (
     <Sheet onClose={onClose} label={t.editTitle(goal.name)}>
-      <h2 style={{ fontSize: 24 }}>{t.editTitle(goal.name)}</h2>
+      <h2 style={{ fontSize: '1.5rem' }}>{t.editTitle(goal.name)}</h2>
       <div className="field">
         <label htmlFor="ed-why">{t.why}</label>
         <input id="ed-why" className="input" maxLength={200} value={why} placeholder={app.onboarding.whyPlaceholder} onChange={(e) => setWhy(e.target.value)} />

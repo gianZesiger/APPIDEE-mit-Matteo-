@@ -28,6 +28,7 @@ export default function Profil() {
   function runExport(pick: { json: boolean; days: boolean; trainings: boolean }) {
     const s = useStore.getState();
     if (pick.json) {
+      s.markBackup();
       const json = exportJson();
       downloadFile(`weniger-sicherung-${today()}.json`, json, 'application/json');
       setExported(json);
@@ -181,7 +182,7 @@ function ExportSheet({ onClose, onExport }: { onClose: () => void; onExport: (pi
   ];
   return (
     <Sheet onClose={onClose} label={t.export}>
-      <h2 style={{ fontSize: 24 }}>{t.exportTitle}</h2>
+      <h2 style={{ fontSize: '1.5rem' }}>{t.exportTitle}</h2>
       <fieldset className="stack-10" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="sr-only">{t.exportTitle}</legend>
         {options.map((o) => (

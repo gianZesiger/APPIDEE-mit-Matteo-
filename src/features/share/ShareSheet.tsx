@@ -49,7 +49,7 @@ export default function ShareSheet({ headline, options, onClose, onDone }: { hea
   const canShare = typeof nav.share === 'function' && typeof nav.canShare === 'function';
   return (
     <Sheet onClose={onClose} label={t.title}>
-      <h2 style={{ fontSize: 24 }}>{t.title}</h2>
+      <h2 style={{ fontSize: '1.5rem' }}>{t.title}</h2>
       <div className={`share-preview ${format}`}>{preview ? <img src={preview} alt={alt} /> : <div className="share-ph" aria-hidden="true" />}</div>
       <p className="small strong">{t.preview}</p>
       <div className="chiprow" role="radiogroup" aria-label={t.format}>

@@ -162,6 +162,33 @@ export default function App() {
     });
   }, [onboarding]);
 
+  // Seitentitel pro Tab, z. B. «Sport · Weniger»
+  useEffect(() => {
+    const label = view === 'ob' ? null : TABS.find((x) => x.key === view)?.label;
+    document.title = label ? t.docTitle(label) : t.name;
+  }, [view]);
+
+  // Nach einem Tab-Wechsel springt der Fokus auf die Überschrift (für Tastatur und Screenreader)
+  const firstView = useRef(true);
+  useEffect(() => {
+    if (firstView.current) {
+      firstView.current = false;
+      return;
+    }
+    let tries = 0;
+    // Der neue Tab lädt eventuell erst: warten, bis seine Überschrift da ist (nicht die des alten Tabs)
+    const label = TABS.find((x) => x.key === view)?.label;
+    const focusH1 = () => {
+      const h1 = [...document.querySelectorAll<HTMLElement>('main h1')].find((h) => !label || h.textContent?.trim() === label);
+      if (h1) {
+        h1.tabIndex = -1;
+        h1.focus({ preventScroll: true });
+      } else if (tries++ < 20) setTimeout(focusH1, 50);
+    };
+    const id = setTimeout(focusH1, 0);
+    return () => clearTimeout(id);
+  }, [view]);
+
   useEffect(() => {
     if (!motionOK()) return;
     // Kurz warten, bis der Tab (lazy) gerendert ist
@@ -173,7 +200,9 @@ export default function App() {
     const apply = () => {
       setTab(next);
       try {
-        history.replaceState(null, '', `#${next}`);
+        // Eigener Verlaufseintrag pro Tab: die Zurück-Taste geht zum vorherigen Tab, nicht aus der App
+        if (next !== tab) history.pushState(null, '', `#${next}`);
+        else history.replaceState(history.state, '', `#${next}`);
       } catch {
         /* in eingebetteten Ansichten egal */
       }
@@ -326,7 +355,9 @@ function Nav({ tab, go }: { tab: Tab; go: (t: Tab) => void }) {
               go(x.key);
             }}
           >
-            {x.icon}
+            <span className="nav-ico" aria-hidden="true">
+              {x.icon}
+            </span>
             {x.label}
           </a>
         ))}

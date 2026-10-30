@@ -11,6 +11,8 @@ import { isMonday } from '../../domain/sport';
 import { dayKey, daysBetween } from '../../domain/time';
 import { templateByKey } from '../../domain/templates';
 import { hasMoney } from '../../domain/rates';
+import { backupDue, installHint } from '../../domain/reminders';
+import { isIos, isStandalone, useInstallPrompt } from '../../app/pwa';
 import type { Goal, UseEvent } from '../../domain/types';
 import { Ring, Toast, useNow } from '../../ui/ui';
 import { Odometer } from '../../ui/Odometer';
@@ -44,7 +46,7 @@ function LiveSaved({ goal, events }: { goal: Goal; events: UseEvent[] }) {
   const tpl = templateByKey(goal.templateKey);
   if (tpl.timeBased) {
     return (
-      <div className="hero-money num live" style={{ fontSize: 40 }}>
+      <div className="hero-money num live" style={{ fontSize: '2.5rem' }}>
         {words.minutesLong(Math.max(0, Math.floor(s.avoided * 60)))}
       </div>
     );
@@ -116,6 +118,13 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   const undo = useStore((s) => s.undoLastEvent);
   const checkIn = useStore((s) => s.checkIn);
   const setNote = useStore((s) => s.setNote);
+  const demo = useStore((s) => s.demo);
+  const lastBackup = useStore((s) => s.lastBackup);
+  const backupSnoozed = useStore((s) => s.backupSnoozed);
+  const snoozeBackup = useStore((s) => s.snoozeBackup);
+  const installSeen = useStore((s) => s.installHintSeen);
+  const dismissInstall = useStore((s) => s.dismissInstall);
+  const promptInstall = useInstallPrompt();
   const stats = useMemo(() => goalSummary(goal, events, now), [goal, events, now]);
   const total = useMemo(() => totalSaved(goals, events, now), [goals, events, now]);
   const tpl = templateByKey(goal.templateKey);
@@ -156,6 +165,9 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
     stats.streak > 0 ? (goal.mode === 'quit' ? t.sinceQuit(stats.streak, goal.name) : t.sinceReduce(stats.streak)) : goal.mode === 'quit' ? t.streakZero : t.streakZeroReduce;
   const label = tpl.timeBased ? t.timeBack : money ? t.saved : t.avoided;
   const nextText = ms.next ? t.nextMilestone(app.milestones.days(ms.next), ms.left) : t.allMilestones;
+  const firstStart = goals.map((g) => dayKey(new Date(g.startAt))).sort()[0];
+  const showBackup = !demo && backupDue(dayKey(now), { firstStart, lastBackup, snoozed: backupSnoozed });
+  const install = demo ? null : installHint({ checkins: checkins.length, standalone: isStandalone(), seen: installSeen, ios: isIos(), canPrompt: !!promptInstall });
   const challengeDone = goal.challengeDays ? daysBetween(dayKey(new Date(goal.startAt)), today) : 0;
 
   const review = useMemo(
@@ -192,7 +204,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
             if (first) setStage(v === 1 ? 'ask' : 'journal');
           }}
         >
-          <span style={{ fontSize: 26 }} aria-hidden="true">
+          <span style={{ fontSize: '1.625rem' }} aria-hidden="true">
             {e}
           </span>
           <span className="small">{t.moods[v]}</span>
@@ -213,9 +225,31 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
         </button>
       </div>
       {goals.length > 1 && (
-        <div className="chips" role="tablist" aria-label={t.habits}>
+        <div
+          className="chips"
+          role="tablist"
+          aria-label={t.habits}
+          onKeyDown={(e) => {
+            // Pfeiltasten wechseln die Gewohnheit (roving tabindex), Pos1 und Ende springen an den Rand
+            const i = goals.findIndex((g) => g.id === goal.id);
+            const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: goals.length - 1 }[e.key];
+            if (to === undefined) return;
+            e.preventDefault();
+            const next = goals[(to + goals.length) % goals.length];
+            setActive(next.id);
+            requestAnimationFrame(() => document.getElementById(`habit-${next.id}`)?.focus());
+          }}
+        >
           {goals.map((g) => (
-            <button key={g.id} role="tab" aria-selected={g.id === goal.id} className={`chip ${g.id === goal.id ? 'on' : ''}`} onClick={() => setActive(g.id)}>
+            <button
+              key={g.id}
+              id={`habit-${g.id}`}
+              role="tab"
+              aria-selected={g.id === goal.id}
+              tabIndex={g.id === goal.id ? 0 : -1}
+              className={`chip ${g.id === goal.id ? 'on' : ''}`}
+              onClick={() => setActive(g.id)}
+            >
               <span aria-hidden="true">{g.emoji}</span> {g.name}
             </button>
           ))}
@@ -368,6 +402,47 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
             </button>
           </div>
           <p className="next-text">{nextText}</p>
+        </section>
+      )}
+
+      {showBackup && (
+        <section className="card flat" aria-labelledby="backup-h">
+          <h2 id="backup-h" className="card-title">
+            {t.backupTitle}
+          </h2>
+          <p className="small">{t.backupText}</p>
+          <div className="row">
+            <button className="btn sm ghost" onClick={() => go('profil')}>
+              {t.backupGo}
+            </button>
+            <button className="btn sm quiet" onClick={snoozeBackup}>
+              {t.later}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {install && (
+        <section className="card flat" aria-labelledby="install-h">
+          <h2 id="install-h" className="card-title">
+            {t.installTitle}
+          </h2>
+          <p className="small">{install === 'ios' ? t.installIos : t.installText}</p>
+          <div className="row">
+            {install === 'button' && promptInstall && (
+              <button
+                className="btn sm ghost"
+                onClick={() => {
+                  void promptInstall().finally(dismissInstall);
+                }}
+              >
+                {t.installButton}
+              </button>
+            )}
+            <button className="btn sm quiet" onClick={dismissInstall}>
+              {t.installLater}
+            </button>
+          </div>
         </section>
       )}
 
