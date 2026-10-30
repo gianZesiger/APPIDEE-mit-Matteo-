@@ -166,7 +166,16 @@ export default function App() {
   }, [hydrated, onboarding]);
 
   useEffect(() => {
-    const on = () => setTab(readHash());
+    const on = () => {
+      // Challenge-Link bei offener App: neue Gewohnheit mit Vorlage, eigene Daten bleiben
+      const ch = readChallenge();
+      if (ch && useStore.getState().goals.length > 0) {
+        setChallenge(ch);
+        setAdding(true);
+        return;
+      }
+      setTab(readHash());
+    };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);

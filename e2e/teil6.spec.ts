@@ -87,3 +87,12 @@ test('kein seitliches Scrollen bei 320 px, auf der Startseite und in allen Tabs'
     await noHorizontalScroll(page);
   }
 });
+
+test('Challenge-Link: frisch geöffnet und bei offener App', async ({ page }) => {
+  await page.goto('/app/#challenge=mate-30');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Challenge: 30 Tage weniger Mate');
+  await page.goto('/app/?modus=beispiel');
+  await expect(page.getByText('Bisher gespart')).toBeVisible();
+  await page.evaluate(() => (location.hash = '#challenge=mate-7'));
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Challenge: 7 Tage weniger Mate/);
+});
