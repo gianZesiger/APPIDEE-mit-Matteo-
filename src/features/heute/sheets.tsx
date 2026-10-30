@@ -2,8 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../app/store';
 import { Ring, Sheet } from '../../ui/ui';
 import { dayKey } from '../../domain/time';
+import { dayStart } from '../../domain/stats';
+import { startDayOf } from '../../domain/rates';
+import { templateByKey } from '../../domain/templates';
+
 import type { Goal } from '../../domain/types';
-import { app } from '../../i18n/de-CH';
+import { app, words } from '../../i18n/de-CH';
 
 const t = app;
 
@@ -12,6 +16,9 @@ export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; go
   const addEvent = useStore((s) => s.addEvent);
   const [units, setUnits] = useState(1);
   const [trigger, setTrigger] = useState<string | undefined>();
+  const today = dayKey(new Date());
+  const [day, setDay] = useState(today);
+  const first = startDayOf(goal);
   return (
     <Sheet onClose={onClose} label={t.heute.slipLink} quiet>
       <span className="eyebrow">{t.slip.eyebrow}</span>
@@ -34,6 +41,10 @@ export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; go
         </div>
       </div>
       <div className="field">
+        <label htmlFor="slip-day">{t.slip.when}</label>
+        <input id="slip-day" type="date" className="input" value={day} min={first} max={today} onChange={(e) => setDay(e.target.value || today)} />
+      </div>
+      <div className="field">
         <span className="label">{t.slip.trigger}</span>
         <div className="option-list">
           {t.triggers.map((x) => (
@@ -46,12 +57,57 @@ export function SlipSheet({ goal, goodDays, onClose, onSaved }: { goal: Goal; go
       <button
         className="btn primary block"
         onClick={() => {
-          addEvent({ goalId: goal.id, at: new Date().toISOString(), units, trigger, kind: 'slip' });
+          // Nachgetragen: Mittag des gewählten Tages, nie vor dem Start und nie in der Zukunft
+          const d = day < first ? first : day > today ? today : day;
+          const at = d === today ? new Date() : new Date(Math.max(new Date(goal.startAt).getTime(), dayStart(d).getTime() + 12 * 3_600_000));
+          addEvent({ goalId: goal.id, at: at.toISOString(), units, trigger, kind: 'slip' });
           onSaved();
           onClose();
         }}
       >
         {t.slip.go}
+      </button>
+      <button className="btn quiet" onClick={onClose}>
+        {t.common.cancel}
+      </button>
+    </Sheet>
+  );
+}
+
+/** Einen Tag im Verlauf korrigieren: die Menge an diesem Tag. Ersetzt alle Einträge des Tages. */
+export function DaySheet({ goal, day, units, onClose, onSaved }: { goal: Goal; day: string; units: number; onClose: () => void; onSaved: () => void }) {
+  const setDayUnits = useStore((s) => s.setDayUnits);
+  const [n, setN] = useState(units);
+  const step = templateByKey(goal.templateKey).step || 1;
+  const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
+  return (
+    <Sheet onClose={onClose} label={words.date(day)} quiet>
+      <span className="eyebrow">{goal.name}</span>
+      <h2 style={{ fontSize: 26 }}>{t.dayEdit.title(words.date(day))}</h2>
+      <div className="card flat" style={{ alignItems: 'center' }}>
+        <span className="small muted">{t.dayEdit.howMany(goal.unit)}</span>
+        <div className="stepper">
+          <button aria-label={t.common.less} onClick={() => setN((u) => Math.max(0, +(u - step).toFixed(1)))} style={{ width: 52, height: 52 }}>
+            −
+          </button>
+          <span className="val num" style={{ fontSize: 48 }} aria-live="polite">
+            {fmt(n)}
+          </span>
+          <button aria-label={t.common.more} onClick={() => setN((u) => Math.min(200, +(u + step).toFixed(1)))} style={{ width: 52, height: 52 }}>
+            +
+          </button>
+        </div>
+      </div>
+      <p className="small muted">{t.dayEdit.hint}</p>
+      <button
+        className="btn primary block"
+        onClick={() => {
+          setDayUnits(goal.id, day, n);
+          onSaved();
+          onClose();
+        }}
+      >
+        {t.dayEdit.save}
       </button>
       <button className="btn quiet" onClick={onClose}>
         {t.common.cancel}
@@ -234,8 +290,8 @@ function Breathe({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Kurz bewegen zählt als «Verlangen überstanden», nicht als Training. */
 function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const addWorkout = useStore((s) => s.addWorkout);
   const addCraving = useStore((s) => s.addCraving);
   const [kind, setKind] = useState<null | string>(null);
   const [step, setStep] = useState(0);
@@ -243,10 +299,10 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
   const [rating, setRating] = useState<number | null>(null);
   const saved = useRef(false);
   const seq = useMemo(() => (kind ? t.move.steps[kind].map((text, i) => ({ text, s: MOVE_SECONDS[kind][i] })) : []), [kind]);
-  // Die Stufe bleibt privat und wird nur einmal gespeichert
-  const keepRating = () => {
-    if (rating !== null && !saved.current) {
-      addCraving(rating);
+  // Einmal speichern: «Verlangen überstanden», die Stärke bleibt privat und ist freiwillig
+  const finish = () => {
+    if (!saved.current) {
+      addCraving(rating ?? undefined);
       saved.current = true;
     }
   };
@@ -318,22 +374,11 @@ function Move({ onClose, onDone }: { onClose: () => void; onDone: () => void }) 
       <button
         className="btn moss block"
         onClick={() => {
-          keepRating();
-          const now = new Date();
-          addWorkout({ day: dayKey(now), at: now.toISOString(), sport: 'bewegung', minutes: Math.max(1, Math.round(totalS / 60)), trigger: 'craving' });
+          finish();
           onDone();
         }}
       >
         {t.move.log}
-      </button>
-      <button
-        className="btn quiet"
-        onClick={() => {
-          keepRating();
-          onClose();
-        }}
-      >
-        {t.move.noLog}
       </button>
     </>
   );

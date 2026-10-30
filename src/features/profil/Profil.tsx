@@ -1,7 +1,8 @@
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { exportJson, useStore } from '../../app/store';
 import { daysCsv, workoutsCsv } from '../../domain/csv';
-import { downloadFile } from '../../ui/ui';
+import { downloadFile, Sheet } from '../../ui/ui';
+import { Restore } from '../shared/Restore';
 import { app } from '../../i18n/de-CH';
 import { FX_CHOICES, fxAuto, subscribeFx } from '../../ui/fx-level';
 
@@ -11,32 +12,31 @@ const today = () => new Date().toISOString().slice(0, 10);
 const LEGAL = !import.meta.env.VITE_SINGLEFILE;
 
 export default function Profil() {
-  const importData = useStore((s) => s.importData);
   const fx = useStore((s) => s.fxLevel);
   const setFx = useStore((s) => s.setFxLevel);
   const autoLevel = useSyncExternalStore(subscribeFx, fxAuto, () => 'hoch' as const);
   const wipe = useStore((s) => s.wipe);
   const weekly = useStore((s) => s.weeklyReview);
   const setWeekly = useStore((s) => s.setWeeklyReview);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [paste, setPaste] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [exported, setExported] = useState<string | null>(null);
 
-  function backup() {
-    const json = exportJson();
-    downloadFile(`weniger-sicherung-${today()}.json`, json, 'application/json');
-    setExported(json);
-    const copy = navigator.clipboard?.writeText(json);
-    if (copy) copy.then(() => setMsg(t.backupCopied), () => setMsg(t.backupManual));
-    else setMsg(t.backupManual);
-  }
+  const [exportOpen, setExportOpen] = useState(false);
 
-  function csv(kind: 'tage' | 'trainings') {
+  /** Ein Export, mehrere Dateien zur Auswahl: Sicherung (JSON) und Tabellen (CSV). */
+  function runExport(pick: { json: boolean; days: boolean; trainings: boolean }) {
     const s = useStore.getState();
-    const content = kind === 'tage' ? daysCsv(s.goals, s.events, s.checkins, new Date()) : workoutsCsv(s.workouts, (k) => app.sports[k] ?? k);
-    downloadFile(`weniger-${kind}-${today()}.csv`, content, 'text/csv;charset=utf-8');
+    if (pick.json) {
+      const json = exportJson();
+      downloadFile(`weniger-sicherung-${today()}.json`, json, 'application/json');
+      setExported(json);
+      const copy = navigator.clipboard?.writeText(json);
+      if (copy) copy.then(() => setMsg(t.backupCopied), () => setMsg(t.backupManual));
+      else setMsg(t.backupManual);
+    }
+    if (pick.days) downloadFile(`weniger-tage-${today()}.csv`, daysCsv(s.goals, s.events, s.checkins, new Date()), 'text/csv;charset=utf-8');
+    if (pick.trainings) downloadFile(`weniger-trainings-${today()}.csv`, workoutsCsv(s.workouts, (k) => app.sports[k] ?? k), 'text/csv;charset=utf-8');
   }
 
   return (
@@ -112,49 +112,11 @@ export default function Profil() {
           {t.data}
         </h2>
         <p className="small">{t.dataText}</p>
-        <button className="btn ghost" onClick={backup}>
-          {t.backup}
+        <button className="btn ghost" onClick={() => setExportOpen(true)}>
+          {t.export}
         </button>
         {exported && <textarea className="input code-area" readOnly value={exported} aria-label={t.backupText} />}
-        <button className="btn ghost" onClick={() => fileRef.current?.click()}>
-          {t.restore}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            setMsg((await importData(await f.text())).message);
-            e.target.value = '';
-          }}
-        />
-        <div className="field">
-          <label htmlFor="paste-backup">{t.restorePaste}</label>
-          <textarea id="paste-backup" className="input code-area" value={paste} onChange={(e) => setPaste(e.target.value)} />
-          {paste.trim() && (
-            <button
-              className="btn sm ghost"
-              onClick={async () => {
-                const r = await importData(paste);
-                setMsg(r.message);
-                if (r.ok) setPaste('');
-              }}
-            >
-              {t.restorePasteGo}
-            </button>
-          )}
-        </div>
-        <div className="grid2">
-          <button className="btn sm ghost" onClick={() => csv('tage')}>
-            {t.csv}
-          </button>
-          <button className="btn sm ghost" onClick={() => csv('trainings')}>
-            {t.csvTrainings}
-          </button>
-        </div>
+        <Restore withPaste onDone={setMsg} />
         {confirm ? (
           <div className="card flat" role="alertdialog" aria-label={t.wipe}>
             <p className="small">{t.wipeText}</p>
@@ -185,6 +147,16 @@ export default function Profil() {
         )}
       </section>
 
+      {exportOpen && (
+        <ExportSheet
+          onClose={() => setExportOpen(false)}
+          onExport={(pick) => {
+            runExport(pick);
+            setExportOpen(false);
+          }}
+        />
+      )}
+
       <section className="card flat">
         <h2 className="card-title">{t.about}</h2>
         <p className="small muted">{t.aboutText}</p>
@@ -196,5 +168,37 @@ export default function Profil() {
         )}
       </section>
     </div>
+  );
+}
+
+function ExportSheet({ onClose, onExport }: { onClose: () => void; onExport: (pick: { json: boolean; days: boolean; trainings: boolean }) => void }) {
+  const [pick, setPick] = useState({ json: true, days: true, trainings: false });
+  const none = !pick.json && !pick.days && !pick.trainings;
+  const options: { k: keyof typeof pick; label: string }[] = [
+    { k: 'json', label: t.exportJson },
+    { k: 'days', label: t.csv },
+    { k: 'trainings', label: t.csvTrainings },
+  ];
+  return (
+    <Sheet onClose={onClose} label={t.export}>
+      <h2 style={{ fontSize: 24 }}>{t.exportTitle}</h2>
+      <fieldset className="stack-10" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="sr-only">{t.exportTitle}</legend>
+        {options.map((o) => (
+          <label key={o.k} htmlFor={`ex-${o.k}`} className="row between toggle-row">
+            <span>{o.label}</span>
+            <input id={`ex-${o.k}`} type="checkbox" checked={pick[o.k]} onChange={(e) => setPick((p) => ({ ...p, [o.k]: e.target.checked }))} />
+          </label>
+        ))}
+      </fieldset>
+      {none && (
+        <p className="field-error" role="alert">
+          {t.exportNone}
+        </p>
+      )}
+      <button className="btn primary block" disabled={none} onClick={() => onExport(pick)}>
+        {t.exportGo}
+      </button>
+    </Sheet>
   );
 }

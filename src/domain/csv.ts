@@ -1,6 +1,6 @@
 import type { CheckIn, Goal, UseEvent } from './types';
 import { effortOf, type Workout } from './sport';
-import { computeStats } from './stats';
+import { goalSummary } from './stats';
 import { app } from '../i18n/de-CH';
 
 // CSV für Excel in der Schweiz: Semikolon als Trenner, Punkt als Dezimalzeichen, UTF-8 mit BOM.
@@ -25,9 +25,9 @@ const L = app.csv;
 export function daysCsv(goals: Goal[], events: UseEvent[], checkins: CheckIn[], now: Date): string {
   const rows: (string | number | undefined)[][] = [[...L.days]];
   for (const g of goals) {
-    const st = computeStats(g, events, now);
+    const st = goalSummary(g, events, now);
     for (const d of st.days) {
-      const mood = checkins.find((c) => c.goalId === g.id && c.day === d.day)?.mood;
+      const mood = checkins.find((c) => c.day === d.day)?.mood;
       rows.push([d.day, g.name, d.units, g.mode === 'reduce' ? d.limit : 0, d.today ? L.running : d.win ? L.yes : L.no, mood ? app.heute.moods[mood] : '']);
     }
   }

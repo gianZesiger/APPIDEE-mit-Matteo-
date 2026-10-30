@@ -1,7 +1,9 @@
 import type { Goal, UseEvent } from '../domain/types';
 import type { Workout } from '../domain/sport';
 import { addDays, dayKey } from '../domain/time';
-import { DAY_MILESTONES, MONEY_MILESTONES, GLOBAL } from '../domain/milestones';
+import { GLOBAL, reconcileMilestones } from '../domain/milestones';
+import { goalSummary } from '../domain/stats';
+import { hasMoney } from '../domain/rates';
 
 /** Beispieldaten zum Ausprobieren. Klar als Beispiel markiert, nicht die Daten der Person. */
 export function exampleData(now = new Date()) {
@@ -13,8 +15,8 @@ export function exampleData(now = new Date()) {
   };
   const iso = new Date().toISOString();
   const goals: Goal[] = [
-    { id: 'ex-mate', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', perDay: 1, price: 1.9, mode: 'quit', startAt: ago(43), createdAt: iso, updatedAt: iso, why: 'Besser schlafen vor Prüfungen' },
-    { id: 'ex-kaffee', templateKey: 'kaffee', name: 'Kaffee', emoji: '☕', unit: 'Tassen', perDay: 4, price: 1.2, mode: 'reduce', targetPerDay: 0, planWeeks: 4, startAt: ago(12), createdAt: iso, updatedAt: iso },
+    { id: 'ex-mate', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', unitOne: 'Mate', rates: [{ validFrom: dayKey(new Date(ago(43))), perDay: 1, price: 1.9 }], mode: 'quit', startAt: ago(43), createdAt: iso, updatedAt: iso, why: 'Besser schlafen vor Prüfungen' },
+    { id: 'ex-kaffee', templateKey: 'kaffee', name: 'Kaffee', emoji: '☕', unit: 'Tassen', unitOne: 'Tasse', rates: [{ validFrom: dayKey(new Date(ago(12))), perDay: 4, price: 1.2 }], mode: 'reduce', targetPerDay: 0, planWeeks: 4, startAt: ago(12), createdAt: iso, updatedAt: iso },
   ];
   const events: UseEvent[] = [{ id: 'ex-s1', goalId: 'ex-mate', at: ago(25, 15), units: 1, kind: 'slip', trigger: 'Stress', updatedAt: iso }];
   for (let d = 11; d >= 1; d--) {
@@ -28,12 +30,12 @@ export function exampleData(now = new Date()) {
   ];
   const workouts: Workout[] = plan.map(([d, sport, minutes, km], i) => ({ id: `ex-w${i}`, day: addDays(today, -d), at: ago(d, 18), sport, minutes, distanceKm: km, rpe: 5 + (i % 3) }));
   workouts.push({ id: 'ex-r1', day: addDays(today, -2), at: ago(2, 20), sport: 'andere', minutes: 0, rest: true });
-  workouts.push({ id: 'ex-c1', day: addDays(today, -6), at: ago(6, 21), sport: 'bewegung', minutes: 3, trigger: 'craving' });
-  const seen: Record<string, string[]> = {
-    'ex-mate': [...DAY_MILESTONES.map((n) => `d${n}@ex-s1`), ...MONEY_MILESTONES.map((n) => `m${n}`)],
-    'ex-kaffee': [...DAY_MILESTONES.map((n) => `d${n}@start`), ...MONEY_MILESTONES.map((n) => `m${n}`)],
-    [GLOBAL]: ['c1', 'w1', 'w10'],
-  };
+  // Erreichte Meilensteine gelten als schon gefeiert, damit das Beispiel nicht sofort feiert
+  const seen: Record<string, string[]> = { [GLOBAL]: ['c1'] };
+  for (const g of goals) {
+    const s = goalSummary(g, events, now);
+    seen[g.id] = reconcileMilestones(s.streak, s.saved, [], hasMoney(g)).keep;
+  }
   const plans = [{ id: 'ex-p1', when: 'Wenn ich Stress habe', then: 'atme ich eine Minute und trinke ein Glas Wasser' }];
   const cravings = [{ id: 'ex-c1', at: ago(6, 21), level: 2 }];
   return { goals, events, workouts, plans, cravings, savings: [{ id: 'ex-sg', name: 'Laufschuhe', amount: 150 }], seenMilestones: seen, activeGoalId: 'ex-mate' };

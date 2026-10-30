@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../../app/store';
 import { useIntent } from '../../app/intent';
-import { EFFORT_RPE, SPORTS, effortOf, isMonday, sportByKey, sportStats, type Workout } from '../../domain/sport';
+import { EFFORT_RPE, SPORTS, effortOf, isDuplicate, isMonday, sportByKey, sportStats, type Workout } from '../../domain/sport';
 import { addDays, dayKey } from '../../domain/time';
 import { Ring, Sheet, Toast, useNow } from '../../ui/ui';
 import { CountUpInline } from '../../ui/CountUpInline';
@@ -33,7 +33,8 @@ export default function Sport() {
   const addWorkout = useStore((s) => s.addWorkout);
   const firstStart = goals.map((g) => dayKey(new Date(g.startAt))).sort()[0];
   const firstGoal = goals.find((g) => dayKey(new Date(g.startAt)) === firstStart);
-  const st = useMemo(() => sportStats(workouts, now, goalMin, firstStart), [workouts, now, goalMin, firstStart]);
+  const cravings = useStore((s) => s.cravings);
+  const st = useMemo(() => sportStats(workouts, now, goalMin, firstStart, cravings), [workouts, now, goalMin, firstStart, cravings]);
   const [sheet, setSheet] = useState(false);
   // Kurzbefehl «Training» öffnet den Eintrag gleich
   useIntent('training', () => setSheet(true));
@@ -44,6 +45,8 @@ export default function Sport() {
   const recent = [...workouts].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   const maxBar = Math.max(goalMin, ...st.last8.map((w) => w.minutes));
   const restToday = workouts.some((w) => w.rest && w.day === today);
+  // Ruhetag und Training am selben Tag schliessen sich aus
+  const trainedToday = workouts.some((w) => !w.rest && w.day === today);
   const progress = goalMin > 0 ? st.last7.minutes / goalMin : 0;
 
   // Montag ist nie nur «0»: ein freundlicher Blick auf die letzte Woche
@@ -87,7 +90,7 @@ export default function Sport() {
         <button className="btn moss block" onClick={() => setSheet(true)}>
           {t.add}
         </button>
-        {!restToday && (
+        {!restToday && !trainedToday && (
           <button
             className="btn quiet"
             onClick={() => {
@@ -108,7 +111,7 @@ export default function Sport() {
           <div>
             <span className="eyebrow">{t.sinceQuit(firstGoal.name)}</span>
             <p className="strong" style={{ fontSize: 18 }}>
-              {t.sinceQuitText(st.sinceQuit, st.cravingMoves)}
+              {t.sinceQuitText(st.sinceQuit, st.cravingsSinceQuit)}
             </p>
           </div>
         </section>
@@ -243,7 +246,6 @@ function WorkoutRow({ w, onRemove }: { w: Workout; onRemove: () => void }) {
           {!w.rest && ` · ${words.minutesLong(w.minutes)}`}
           {w.distanceKm ? ` · ${t.km(String(w.distanceKm))}` : ''}
           {effort ? ` · ${t.efforts[effort]}` : ''}
-          {w.trigger === 'craving' ? ` · ${t.insteadOfCraving}` : ''}
         </p>
       </div>
       <button className="icon-btn" aria-label={t.removeLabel(`${name}, ${date}`)} onClick={onRemove}>
@@ -261,7 +263,9 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
   const last = [...real].sort((a, b) => b.at.localeCompare(a.at))[0];
   const [sport, setSport] = useState(last?.sport ?? 'laufen');
   const [minutes, setMinutes] = useState(last?.minutes ?? 30);
-  const [when, setWhen] = useState<'heute' | 'gestern'>('heute');
+  const todayKey = dayKey(new Date());
+  const [day, setDay] = useState(todayKey);
+  const [dupWarned, setDupWarned] = useState(false);
   const [more, setMore] = useState(false);
   const [km, setKm] = useState('');
   const [effort, setEffort] = useState<1 | 2 | 3 | undefined>();
@@ -269,6 +273,11 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
   const sp = sportByKey(sport);
 
   function save(w: Omit<Workout, 'id'>) {
+    // Gleicher Eintrag am gleichen Tag: erst hinweisen, beim zweiten Tippen trotzdem speichern
+    if (isDuplicate(workouts, w) && !dupWarned) {
+      setDupWarned(true);
+      return;
+    }
     const now = new Date();
     const before = sportStats(workouts, now, goalMin).last7.minutes;
     addWorkout(w);
@@ -280,11 +289,11 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
 
   function build(): Omit<Workout, 'id'> {
     const now = new Date();
-    const day = when === 'heute' ? dayKey(now) : addDays(dayKey(now), -1);
     const d = parseFloat(km.replace(',', '.'));
+    const [yy, mm, dd] = day.split('-').map(Number);
     return {
       day,
-      at: when === 'heute' ? now.toISOString() : new Date(now.getTime() - 86_400_000).toISOString(),
+      at: day === dayKey(now) ? now.toISOString() : new Date(yy, mm - 1, dd, 18).toISOString(),
       sport,
       minutes,
       distanceKm: sp.distance && d > 0 && d <= 1000 ? +d.toFixed(2) : undefined,
@@ -341,12 +350,30 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
           </button>
         </div>
       </div>
-      <div className="chiprow" role="radiogroup" aria-label={t.when}>
-        {(['heute', 'gestern'] as const).map((w) => (
-          <button key={w} role="radio" aria-checked={when === w} className={`dchip ${when === w ? 'on' : ''}`} onClick={() => setWhen(w)}>
-            {w === 'heute' ? t.today : t.yesterday}
-          </button>
-        ))}
+      <div className="field">
+        <label htmlFor="w-day">{t.day}</label>
+        <div className="row">
+          <div className="chiprow">
+            {[todayKey, addDays(todayKey, -1)].map((k, i) => (
+              <button key={k} className={`dchip ${day === k ? 'on' : ''}`} aria-pressed={day === k} onClick={() => setDay(k)}>
+                {i === 0 ? t.today : t.yesterday}
+              </button>
+            ))}
+          </div>
+          <input
+            id="w-day"
+            type="date"
+            className="input"
+            style={{ flex: 1, minWidth: 0 }}
+            value={day}
+            max={todayKey}
+            min={addDays(todayKey, -365)}
+            onChange={(e) => {
+              setDay(e.target.value || todayKey);
+              setDupWarned(false);
+            }}
+          />
+        </div>
       </div>
       {!more ? (
         <button className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(true)}>
@@ -384,6 +411,11 @@ function AddWorkout({ onClose, onSaved }: { onClose: () => void; onSaved: (w: Om
             </div>
           </div>
         </div>
+      )}
+      {dupWarned && (
+        <p className="field-error" role="alert">
+          {t.duplicate}
+        </p>
       )}
       <button className="btn moss block" onClick={() => save(build())}>
         {app.common.save}

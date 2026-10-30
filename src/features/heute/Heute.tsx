@@ -2,14 +2,15 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../app/store';
 import { useIntent } from '../../app/intent';
 import type { Tab } from '../../app/App';
-import { computeStats } from '../../domain/stats';
-import { detectMilestones, nextDayMilestone } from '../../domain/milestones';
+import { goalSummary, totalSaved } from '../../domain/stats';
+import { nextDayMilestone, reconcileMilestones } from '../../domain/milestones';
 import { allocatePots, currentPot } from '../../domain/savings';
 import { lastWeekReview, shareContent } from '../../domain/insights';
 import { chf, chfSpeech } from '../../domain/format';
 import { isMonday } from '../../domain/sport';
 import { dayKey, daysBetween } from '../../domain/time';
 import { templateByKey } from '../../domain/templates';
+import { hasMoney } from '../../domain/rates';
 import type { Goal, UseEvent } from '../../domain/types';
 import { Ring, Toast, useNow } from '../../ui/ui';
 import { Odometer } from '../../ui/Odometer';
@@ -17,11 +18,11 @@ import { spark } from '../../ui/motion';
 import { app, words } from '../../i18n/de-CH';
 import { celebrationText, useBadgeCelebration } from '../shared/celebrate';
 import type { ShareOption } from '../share/ShareSheet';
-import { SlipSheet, SosSheet } from './sheets';
+import { DaySheet, SlipSheet, SosSheet } from './sheets';
 
 const ShareSheet = lazy(() => import('../share/ShareSheet'));
 const t = app.heute;
-const D = 86_400_000;
+const fmt = (v: number) => (v % 1 ? v.toFixed(1) : String(v));
 
 export default function Heute({ go }: { go: (t: Tab) => void }) {
   const goals = useStore((s) => s.goals);
@@ -39,26 +40,26 @@ export default function Heute({ go }: { go: (t: Tab) => void }) {
 /** Live-Betrag als eigene kleine Komponente: nur sie rendert jede Sekunde neu. */
 function LiveSaved({ goal, events }: { goal: Goal; events: UseEvent[] }) {
   const now = useNow(1000);
-  const s = computeStats(goal, events, now);
+  const s = goalSummary(goal, events, now);
   const tpl = templateByKey(goal.templateKey);
   if (tpl.timeBased) {
     return (
       <div className="hero-money num live" style={{ fontSize: 40 }}>
-        {words.minutesLong(Math.floor(s.avoided * 60))}
+        {words.minutesLong(Math.max(0, Math.floor(s.avoided * 60)))}
       </div>
     );
   }
-  if (goal.price <= 0) {
+  if (!hasMoney(goal)) {
     return (
       <div className="hero-money num live">
-        {Math.floor(s.avoided)}
+        {Math.max(0, Math.floor(s.avoided))}
         <span className="cur" style={{ verticalAlign: 'baseline', marginLeft: 6 }}>
           {goal.unit}
         </span>
       </div>
     );
   }
-  const money = chf(s.saved, s.saved < 10 ? 3 : 2);
+  const money = chf(s.saved, 2);
   const [int, cents] = money.split('.');
   return (
     <div className="hero-money num live">
@@ -82,6 +83,12 @@ function LiveExact({ from }: { from: number }) {
 
 type Share = { headline: string; options: ShareOption[] } | null;
 
+const MOODS = [
+  [1, '😮‍💨'],
+  [2, '🙂'],
+  [3, '💪'],
+] as const;
+
 function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   // Kurzbefehl «Check-in»: zur Check-in-Karte und den Fokus auf die erste Wahl
   useIntent('checkin', () => {
@@ -92,9 +99,9 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   // Alles ausser dem Live-Betrag reicht alle 15 Sekunden
   const tick = useNow(15_000);
   const events = useStore((s) => s.events);
-  // Neue Einträge sofort mitzählen, nicht erst beim nächsten Takt
-  const now = useMemo(() => new Date(Math.max(tick.getTime(), Date.now())), [tick, events]);
   const goals = useStore((s) => s.goals);
+  // Neue Einträge sofort mitzählen, nicht erst beim nächsten Takt
+  const now = useMemo(() => new Date(Math.max(tick.getTime(), Date.now())), [tick, events, goals]);
   const checkins = useStore((s) => s.checkins);
   const savings = useStore((s) => s.savings);
   const workouts = useStore((s) => s.workouts);
@@ -102,74 +109,97 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
   const weeklyReview = useStore((s) => s.weeklyReview);
   const reviewSeen = useStore((s) => s.reviewSeen);
   const markReviewSeen = useStore((s) => s.markReviewSeen);
-  const seenAll = useStore((s) => s.seenMilestones);
-  const markMilestones = useStore((s) => s.markMilestones);
+  const seen = useStore((s) => s.seenMilestones[goal.id]);
+  const setMilestones = useStore((s) => s.setMilestones);
   const setActive = useStore((s) => s.setActive);
   const addEvent = useStore((s) => s.addEvent);
   const undo = useStore((s) => s.undoLastEvent);
   const checkIn = useStore((s) => s.checkIn);
   const setNote = useStore((s) => s.setNote);
-  const stats = useMemo(() => computeStats(goal, events, now), [goal, events, now]);
-  const total = useMemo(() => goals.reduce((sum, g) => sum + computeStats(g, events, now).saved, 0), [goals, events, now]);
+  const stats = useMemo(() => goalSummary(goal, events, now), [goal, events, now]);
+  const total = useMemo(() => totalSaved(goals, events, now), [goals, events, now]);
   const tpl = templateByKey(goal.templateKey);
-  const hasMoney = goal.price > 0 && !tpl.timeBased;
+  const money = hasMoney(goal);
 
   const [sheet, setSheet] = useState<null | 'slip' | 'sos'>(null);
+  const [dayEdit, setDayEdit] = useState<string | null>(null);
   const [share, setShare] = useState<Share>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exact, setExact] = useState(false);
   // Nach dem Einchecken: bei «Zäh» erst fragen, dann ein Satz fürs Tagebuch
   const [stage, setStage] = useState<null | 'ask' | 'journal'>(null);
+  const [changing, setChanging] = useState(false);
   const [note, setNoteText] = useState('');
 
   useBadgeCelebration(setToast);
 
-  const lastSlip = [...events].reverse().find((e) => e.goalId === goal.id && e.kind === 'slip');
-  const series = lastSlip?.id ?? 'start';
-  const clean = goal.mode === 'quit' ? stats.cleanMs : stats.elapsedMs;
-  const cleanFrom = now.getTime() - clean;
-
+  // Meilensteine abgleichen: neue feiern, nicht mehr erreichte zurücksetzen
   useEffect(() => {
-    const r = detectMilestones(clean, stats.saved, seenAll[goal.id] ?? [], series, hasMoney);
-    if (r.newKeys.length === 0) return;
-    markMilestones(goal.id, r.newKeys);
+    const r = reconcileMilestones(stats.streak, stats.saved, seen ?? [], money);
+    if (!r.changed) return;
+    setMilestones(goal.id, r.keep);
     if (r.celebrate) {
       setToast(celebrationText(r.celebrate));
       setTimeout(() => spark(undefined, undefined, { count: 90 }), 120);
     }
-  }, [clean, stats.saved, seenAll, goal.id, series, hasMoney, markMilestones]);
+  }, [stats.streak, stats.saved, seen, goal.id, money, setMilestones]);
 
-  const ms = nextDayMilestone(clean);
+  const ms = nextDayMilestone(stats.streak);
   const today = dayKey(now);
-  const todayCheck = checkins.find((c) => c.goalId === goal.id && c.day === today);
+  const todayCheck = checkins.find((c) => c.day === today);
   const strip = stats.days.slice(-14);
-  const isDay1 = stats.totalDays === 0;
+  const isDay1 = stats.totalDays <= 1;
   const fills = allocatePots(total, savings);
   const pot = currentPot(fills);
   const lastPot = fills.length ? fills[fills.length - 1] : null;
-  const since = goal.mode === 'quit' ? t.sinceQuit(words.sinceDat(clean), goal.name) : t.sinceReduce(words.sinceDat(clean), goal.name);
-  const label = tpl.timeBased ? t.timeBack : hasMoney ? t.saved : t.avoided;
-  const nextText = ms.next ? t.nextMilestone(app.milestones.days(ms.next), words.until(ms.next * D - clean)) : t.allMilestones;
+  const since =
+    stats.streak > 0 ? (goal.mode === 'quit' ? t.sinceQuit(stats.streak, goal.name) : t.sinceReduce(stats.streak)) : goal.mode === 'quit' ? t.streakZero : t.streakZeroReduce;
+  const label = tpl.timeBased ? t.timeBack : money ? t.saved : t.avoided;
+  const nextText = ms.next ? t.nextMilestone(app.milestones.days(ms.next), ms.left) : t.allMilestones;
   const challengeDone = goal.challengeDays ? daysBetween(dayKey(new Date(goal.startAt)), today) : 0;
 
   const review = useMemo(
     () => (weeklyReview && isMonday(today) ? lastWeekReview(goals, events, workouts, now, sportGoal) : null),
     [weeklyReview, today, goals, events, workouts, now, sportGoal],
   );
-  const showReview = review && review.daysTracked > 0 && reviewSeen !== review.week;
+  const showReview = review && review.perGoal.some((g) => g.of > 0) && reviewSeen !== review.week;
+  const reviewText = review ? app.review.lines(review.perGoal.filter((g) => g.of > 0).map((g) => app.review.line(g.name, g.good, g.of, g.mode === 'reduce'))) : '';
 
   function openShare() {
-    const c = shareContent({ goodDays: stats.winDays, habit: goal.name, amount: stats.saved, showDays: true, showHabit: false, showAmount: false });
+    const c = shareContent({ goodDays: stats.goodDays, habit: goal.name, amount: stats.saved, showDays: true, showHabit: false, showAmount: false });
     const s = app.share;
     setShare({
       headline: s.headline,
       options: [
-        { id: 'days', label: s.showDays, text: s.days(stats.winDays), tone: 'primary', on: c.days !== null },
+        { id: 'days', label: s.showDays, text: s.days(stats.goodDays), tone: 'primary', on: c.days !== null },
         { id: 'habit', label: s.showHabit, text: s.habit(goal.name), tone: 'ink', on: c.habit !== null },
-        ...(hasMoney ? [{ id: 'amount', label: s.showAmount, text: s.amount(chf(stats.saved)), tone: 'gold' as const, on: c.amount !== null }] : []),
+        ...(money ? [{ id: 'amount', label: s.showAmount, text: s.amount(chf(stats.saved)), tone: 'gold' as const, on: c.amount !== null }] : []),
       ],
     });
   }
+
+  const moodPicker = (
+    <div className="grid3">
+      {MOODS.map(([v, e]) => (
+        <button
+          key={v}
+          className={`option mood ${todayCheck?.mood === v ? 'on' : ''}`}
+          aria-pressed={todayCheck?.mood === v}
+          onClick={() => {
+            const first = !todayCheck;
+            checkIn(v);
+            setChanging(false);
+            if (first) setStage(v === 1 ? 'ask' : 'journal');
+          }}
+        >
+          <span style={{ fontSize: 26 }} aria-hidden="true">
+            {e}
+          </span>
+          <span className="small">{t.moods[v]}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -197,17 +227,16 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           <h2 id="review-h" className="card-title">
             {app.review.title}
           </h2>
-          <div className="grid3">
-            <div className="stat">
-              <span className="v num">{app.review.goodDays(review.goodDays, review.daysTracked)}</span>
-              <span className="l">{app.review.goodDaysLabel}</span>
-            </div>
-            <div className="stat">
-              <span className="v num">{chf(review.saved, 0)}</span>
-              <span className="l">
-                {app.common.chf} {app.review.saved}
-              </span>
-            </div>
+          <p className="strong">{reviewText}</p>
+          <div className="grid2">
+            {money && (
+              <div className="stat">
+                <span className="v num">{chf(review.saved, 0)}</span>
+                <span className="l">
+                  {app.common.chf} {app.review.saved}
+                </span>
+              </div>
+            )}
             <div className="stat">
               <span className="v num">{review.trainingMinutes}</span>
               <span className="l">{app.sport.minutesUnit(review.trainingMinutes)}</span>
@@ -220,7 +249,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
                 setShare({
                   headline: app.share.reviewHeadline,
                   options: [
-                    { id: 'days', label: app.share.showDays, text: `${app.review.goodDays(review.goodDays, review.daysTracked)} ${app.review.goodDaysLabel}`, tone: 'primary', on: true },
+                    { id: 'days', label: app.share.showDays, text: reviewText, tone: 'primary', on: true },
                     { id: 'move', label: app.review.training, text: `${words.minutesLong(review.trainingMinutes)} ${app.review.training}`, tone: 'ink', on: review.trainingMinutes > 0 },
                     { id: 'amount', label: app.share.showAmount, text: app.share.amount(chf(review.saved)), tone: 'gold', on: false },
                   ],
@@ -246,57 +275,38 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           <button className="since" aria-expanded={exact} onClick={() => setExact((v) => !v)}>
             {since}
           </button>
-          {exact ? <LiveExact from={cleanFrom} /> : <span className="tiny muted">{t.exactHint}</span>}
+          {exact ? <LiveExact from={stats.cleanFrom} /> : <span className="tiny muted">{t.exactHint}</span>}
         </Ring>
         {goal.challengeDays && (
           <span className="pill gold">{challengeDone >= goal.challengeDays ? t.challengeDone : t.challenge(goal.challengeDays - challengeDone, goal.challengeDays)}</span>
         )}
-        {goal.mode === 'reduce' && (
+        {goal.mode === 'reduce' && stats.plan && (
           <div className="counter">
-            <span className={`pill ${stats.todayUnits <= stats.todayLimit ? 'primary' : 'gold'}`}>{t.reduceToday(String(stats.todayUnits), String(stats.todayLimit))}</span>
+            <p className="small strong">
+              {stats.plan.extendedUntil ? t.planExtended(stats.plan.week, words.date(stats.plan.extendedUntil)) : t.planWeek(stats.plan.week, stats.plan.weeks, fmt(stats.plan.limit))}
+            </p>
+            <span className={`pill ${stats.todayUnits <= stats.todayLimit ? 'primary' : 'gold'}`}>{t.reduceToday(fmt(stats.todayUnits), fmt(stats.todayLimit))}</span>
             <div className="row">
               <button className="btn primary" style={{ flex: 1 }} onClick={() => addEvent({ goalId: goal.id, at: new Date().toISOString(), units: 1, kind: 'log' })}>
-                {t.plusOne(goal.unit)}
+                {t.plusOne(goal.unitOne ?? goal.unit)}
               </button>
-              <button className="btn ghost sm" onClick={() => undo(goal.id)}>
+              <button className="btn ghost sm" aria-label={t.undoLast} disabled={stats.todayUnits === 0} onClick={() => undo(goal.id)}>
                 {app.common.undo}
               </button>
             </div>
+            <p className="small muted">{t.inPlan(stats.plan.inPlan, stats.plan.daysSoFar)}</p>
             {stats.todayUnits > stats.todayLimit && <p className="small muted">{t.overLimit}</p>}
           </div>
         )}
       </section>
 
       {/* Ein einziger nächster Schritt: einchecken, dann ein Satz fürs Tagebuch, danach der nächste Meilenstein */}
-      {!todayCheck ? (
+      {!todayCheck || changing ? (
         <section className="card" aria-labelledby="checkin-h">
           <h2 id="checkin-h" className="card-title">
-            {t.checkinTitle}
+            {changing ? t.checkinChangeLabel : t.checkinTitle}
           </h2>
-          <div className="grid3">
-            {(
-              [
-                [1, '😮‍💨'],
-                [2, '🙂'],
-                [3, '💪'],
-              ] as const
-            ).map(([v, e]) => (
-              <button
-                key={v}
-                className="option mood"
-                aria-pressed={false}
-                onClick={() => {
-                  checkIn(goal.id, v);
-                  setStage(v === 1 ? 'ask' : 'journal');
-                }}
-              >
-                <span style={{ fontSize: 26 }} aria-hidden="true">
-                  {e}
-                </span>
-                <span className="small">{t.moods[v]}</span>
-              </button>
-            ))}
-          </div>
+          {moodPicker}
         </section>
       ) : stage === 'ask' ? (
         <section className="card" aria-labelledby="ask-h">
@@ -334,7 +344,7 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
               style={{ flex: 1 }}
               onClick={() => {
                 if (note.trim()) {
-                  setNote(goal.id, note);
+                  setNote(note);
                   setToast(t.journalSaved);
                 }
                 setStage(null);
@@ -349,9 +359,14 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
         </section>
       ) : (
         <section className="card next" aria-label={t.ringLabel}>
-          <span className="eyebrow">
-            {t.moods[todayCheck.mood]} · {t.checkinThanks}
-          </span>
+          <div className="row between">
+            <span className="eyebrow">
+              {t.moods[todayCheck.mood]} · {t.checkinThanks}
+            </span>
+            <button className="btn sm quiet" aria-label={t.checkinChangeLabel} onClick={() => setChanging(true)}>
+              {t.checkinChange}
+            </button>
+          </div>
           <p className="next-text">{nextText}</p>
         </section>
       )}
@@ -371,17 +386,22 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
           <h2 id="strip-h" className="card-title">
             {t.strip}
           </h2>
-          {!isDay1 && <span className="small muted">{t.stripSummary(stats.winDays, stats.streak)}</span>}
+          {!isDay1 && <span className="small muted">{t.stripSummary(stats.goodDays, stats.streak)}</span>}
         </div>
-        <div className="daystrip" role="img" aria-label={t.stripSpeech(strip.filter((x) => x.win && !x.today).length, 14)}>
+        <div className="daystrip" role="group" aria-label={t.stripSpeech(strip.filter((x) => x.win).length, strip.length)}>
           {Array.from({ length: 14 - strip.length }).map((_, i) => (
-            <i key={`e${i}`} className="empty" />
+            <i key={`e${i}`} className="empty" aria-hidden="true" />
           ))}
           {strip.map((dd) => (
-            <i key={dd.day} className={dd.today ? 'today' : dd.win ? 'win' : 'miss'} />
+            <button
+              key={dd.day}
+              className={dd.today ? 'today' : dd.win ? 'win' : 'miss'}
+              aria-label={t.dayLabel(words.date(dd.day), dd.today ? t.dayRunning : dd.win ? t.dayGood : t.dayMiss)}
+              onClick={() => setDayEdit(dd.day)}
+            />
           ))}
         </div>
-        {isDay1 && <p className="small muted">{t.day1}</p>}
+        <p className="tiny muted">{isDay1 ? t.day1 : t.stripHint}</p>
       </section>
 
       {(pot || lastPot) && (
@@ -400,9 +420,21 @@ function GoalToday({ goal, go }: { goal: Goal; go: (t: Tab) => void }) {
         </button>
       )}
 
-      {sheet === 'slip' && <SlipSheet goal={goal} goodDays={stats.winDays} onClose={() => setSheet(null)} onSaved={() => setToast(t.toastSaved)} />}
+      {/* «Deine X guten Tage bleiben»: nur abgeschlossene Tage, heute läuft noch */}
+      {sheet === 'slip' && (
+        <SlipSheet goal={goal} goodDays={stats.goodDays - (stats.days[stats.days.length - 1]?.win ? 1 : 0)} onClose={() => setSheet(null)} onSaved={() => setToast(t.toastSaved)} />
+      )}
       {sheet === 'sos' && (
         <SosSheet goal={goal} onClose={() => setSheet(null)} onSlip={goal.mode === 'quit' ? () => setSheet('slip') : undefined} onMoved={() => setToast(t.toastMoved)} />
+      )}
+      {dayEdit && (
+        <DaySheet
+          goal={goal}
+          day={dayEdit}
+          units={stats.days.find((x) => x.day === dayEdit)?.units ?? 0}
+          onClose={() => setDayEdit(null)}
+          onSaved={() => setToast(t.toastCorrected)}
+        />
       )}
       {share && (
         <Suspense fallback={null}>

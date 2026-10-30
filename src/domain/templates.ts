@@ -6,6 +6,7 @@ export interface HabitTemplate {
   name: string;
   emoji: string;
   unit: string;
+  unitOne: string;
   question: string;
   perDay: number;
   price: number;

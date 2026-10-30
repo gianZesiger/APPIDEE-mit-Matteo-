@@ -3,7 +3,13 @@
 import type { CheckIn, CravingEntry, Goal, IfThenPlan, SavingsGoal, UseEvent } from './types';
 import type { Workout } from './sport';
 
-/** Alles, was in einer Sicherung steckt (nur Nutzerdaten). */
+export interface BackupSettings {
+  sportGoalMin: number;
+  fxLevel: string;
+  weeklyReview: boolean;
+}
+
+/** Alles, was in einer Sicherung steckt: Daten, Einstellungen und gefeierte Meilensteine. */
 export interface BackupData {
   goals: Goal[];
   events: UseEvent[];
@@ -12,9 +18,12 @@ export interface BackupData {
   workouts: Workout[];
   cravings: CravingEntry[];
   plans: IfThenPlan[];
-  sportGoalMin: number;
+  seenMilestones: Record<string, string[]>;
+  settings: BackupSettings;
 }
 
+/** Format der Sicherungsdatei. Ältere Versionen werden beim Laden umgerechnet. */
+export const BACKUP_VERSION = 5;
 export const MAX_IMPORT_BYTES = 2_000_000;
 export const SPORT_GOAL_MIN = 30;
 export const SPORT_GOAL_MAX = 600;
@@ -25,5 +34,5 @@ export function clampSportGoal(m: unknown): number {
 }
 
 export function serializeBackup(data: BackupData, now = new Date()): string {
-  return JSON.stringify({ app: 'weniger-solo', version: 3, exportedAt: now.toISOString(), ...data }, null, 2);
+  return JSON.stringify({ app: 'weniger', version: BACKUP_VERSION, exportedAt: now.toISOString(), ...data }, null, 2);
 }

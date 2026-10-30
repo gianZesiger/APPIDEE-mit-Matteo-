@@ -7,6 +7,10 @@ import { chf, num } from '../../domain/format';
 import { yearly } from '../../domain/stats';
 import { planSteps } from '../../domain/reduction';
 import type { Mode } from '../../domain/types';
+import { dayKey } from '../../domain/time';
+import { checkGoalInput, PER_DAY_MAX, PER_DAY_MIN } from '../../domain/validate';
+import { Field } from '../../ui/Field';
+import { Restore } from '../shared/Restore';
 import { app, words } from '../../i18n/de-CH';
 
 const t = app.onboarding;
@@ -35,6 +39,10 @@ export default function Onboarding({
   const [mode, setMode] = useState<Mode>('quit');
   const [weeks, setWeeks] = useState(4);
   const [why, setWhy] = useState('');
+  const today = dayKey(new Date());
+  const [startDay, setStartDay] = useState(today);
+  const [target, setTarget] = useState('0');
+  const [tried, setTried] = useState(false);
   const [secs, setSecs] = useState(0);
   const tilesRef = useRef<HTMLDivElement>(null);
   const challengeTpl = challenge ? TEMPLATES.find((x) => x.key === challenge.templateKey) : undefined;
@@ -65,8 +73,21 @@ export default function Onboarding({
     setStep(2);
   }
 
-  const priceNum = Math.max(0, parseFloat(price.replace(',', '.')) || 0);
+  const check = checkGoalInput({ perDay: String(perDay), price, startDay, target: mode === 'reduce' ? target : undefined }, today, { needsPrice: !tpl?.timeBased });
+  const priceNum = check.values.price;
   const y = yearly(perDay, priceNum);
+  const err = (k: keyof typeof check.errors) => (tried || k === 'startDay' ? check.errors[k] : undefined);
+
+  // Fehler stehen am Feld, weiter geht es erst, wenn alles stimmt
+  function next() {
+    setTried(true);
+    if (!check.ok) {
+      const first = (['perDay', 'price', 'target', 'startDay'] as const).find((k) => check.errors[k]);
+      if (first) document.getElementById(`ob-${first}`)?.focus();
+      return;
+    }
+    setStep(3);
+  }
 
   function start() {
     if (!tpl) return;
@@ -75,11 +96,15 @@ export default function Onboarding({
       name: name.trim() || tpl.name,
       emoji: tpl.emoji,
       unit: tpl.unit,
-      perDay,
-      price: tpl.timeBased ? 0 : priceNum,
+      unitOne: tpl.unitOne,
+      rates: [{ validFrom: startDay, perDay, price: tpl.timeBased ? 0 : priceNum }],
       mode,
-      startAt: new Date().toISOString(),
-      targetPerDay: 0,
+      // Heute: ab jetzt. Ein Tag in der Vergangenheit: ab Mitternacht dieses Tages.
+      startAt: startDay === today ? new Date().toISOString() : (() => {
+        const [yy, mm, dd] = startDay.split('-').map(Number);
+        return new Date(yy, mm - 1, dd).toISOString();
+      })(),
+      targetPerDay: mode === 'reduce' ? check.values.target : 0,
       planWeeks: weeks,
       why: why.trim() || undefined,
       challengeDays: challenge?.days,
@@ -151,15 +176,19 @@ export default function Onboarding({
                 {first ? t.start : app.common.next}
               </button>
               {first ? (
-                <button
-                  className="btn quiet block"
-                  onClick={() => {
-                    enterDemo();
-                    onDone();
-                  }}
-                >
-                  {t.example}
-                </button>
+                // Zwei leise Wege nebeneinander: erst das Beispiel ansehen oder eine Sicherung laden
+                <div className="ob-alt">
+                  <button
+                    className="btn quiet"
+                    onClick={() => {
+                      enterDemo();
+                      onDone();
+                    }}
+                  >
+                    {t.example}
+                  </button>
+                  <Restore className="btn quiet" label={t.restore} onDone={() => onDone()} />
+                </div>
               ) : (
                 <button className="btn quiet block" onClick={onCancel}>
                   {app.common.cancel}
@@ -186,13 +215,13 @@ export default function Onboarding({
           )}
           <div className="card" style={{ alignItems: 'center', paddingBlock: 22 }}>
             <div className="stepper">
-              <button aria-label={app.common.less} onClick={() => setPerDay((v) => Math.max(tpl.step, +(v - tpl.step).toFixed(1)))}>
+              <button aria-label={app.common.less} onClick={() => setPerDay((v) => Math.max(PER_DAY_MIN, +(v - tpl.step).toFixed(1)))}>
                 −
               </button>
               <span className="val num" aria-live="polite">
                 {fmt(perDay)}
               </span>
-              <button aria-label={app.common.more} onClick={() => setPerDay((v) => Math.min(500, +(v + tpl.step).toFixed(1)))}>
+              <button aria-label={app.common.more} onClick={() => setPerDay((v) => Math.min(PER_DAY_MAX, +(v + tpl.step).toFixed(1)))}>
                 +
               </button>
             </div>
@@ -203,9 +232,19 @@ export default function Onboarding({
               <label htmlFor="ob-price">{t.priceLabel}</label>
               <div className="money-input">
                 <span>{app.common.chf}</span>
-                <input id="ob-price" className="input num" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+                <input
+                  id="ob-price"
+                  className="input num"
+                  inputMode="decimal"
+                  value={price}
+                  aria-invalid={!!err('price')}
+                  aria-describedby="ob-price-msg"
+                  onChange={(e) => setPrice(e.target.value)}
+                />
               </div>
-              {tpl.priceHint && <span className="tiny muted">{t.priceHint(tpl.priceHint)}</span>}
+              <span id="ob-price-msg" className={err('price') ? 'field-error' : 'tiny muted'} role={err('price') ? 'alert' : undefined}>
+                {err('price') ?? (tpl.priceHint ? t.priceHint(tpl.priceHint) : '')}
+              </span>
             </div>
           )}
           {mode === 'reduce' && (
@@ -217,9 +256,26 @@ export default function Onboarding({
                   {words.weeks(weeks)}
                 </span>
               </div>
-              <span className="tiny muted">{t.reducePlan(planSteps(perDay, 0, weeks, perDay % 1 ? 0.5 : 1).map(fmt).join(' → '))}</span>
+              <span className="tiny muted">{t.reducePlan(planSteps(perDay, check.values.target, weeks, perDay % 1 ? 0.5 : 1).map(fmt).join(' → '))}</span>
             </div>
           )}
+          {mode === 'reduce' && <Field id="ob-target" label={t.target} hint={t.targetHint} value={target} onChange={setTarget} error={err('target')} />}
+          <div className="field">
+            <label htmlFor="ob-startDay">{t.startLabel}</label>
+            <input
+              id="ob-startDay"
+              type="date"
+              className="input"
+              value={startDay}
+              max={today}
+              aria-invalid={!!check.errors.startDay}
+              aria-describedby="ob-startDay-msg"
+              onChange={(e) => setStartDay(e.target.value)}
+            />
+            <span id="ob-startDay-msg" className={check.errors.startDay ? 'field-error' : 'tiny muted'} role={check.errors.startDay || check.warnings.startDay ? 'alert' : undefined}>
+              {check.errors.startDay ?? check.warnings.startDay ?? t.startHint}
+            </span>
+          </div>
           <button className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setMode(mode === 'quit' ? 'reduce' : 'quit')}>
             {mode === 'quit' ? t.reduceLink : t.quitLink}
           </button>
@@ -228,7 +284,7 @@ export default function Onboarding({
               <button className="btn ghost" onClick={() => setStep(1)}>
                 {app.common.back}
               </button>
-              <button className="btn primary" style={{ flex: 1 }} disabled={tpl.key === 'eigene' && !name.trim()} onClick={() => setStep(3)}>
+              <button className="btn primary" style={{ flex: 1 }} disabled={tpl.key === 'eigene' && !name.trim()} onClick={next}>
                 {app.common.next}
               </button>
             </div>

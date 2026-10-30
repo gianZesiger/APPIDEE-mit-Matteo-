@@ -54,7 +54,7 @@ describe('Zeit in Worten, ohne Abkürzungen', () => {
 describe('CSV-Export', () => {
   const now = new Date(2026, 9, 24, 12, 0);
   const goal: Goal = {
-    id: 'g1', templateKey: 'mate', name: 'Mate; "Club"', emoji: '🧉', unit: 'Mate', perDay: 1, price: 2, mode: 'quit',
+    id: 'g1', templateKey: 'mate', name: 'Mate; "Club"', emoji: '🧉', unit: 'Mate', rates: [{ validFrom: '2026-10-21', perDay: 1, price: 2 }], mode: 'quit',
     startAt: new Date(2026, 9, 21, 8).toISOString(), createdAt: '', updatedAt: '',
   };
   it('Semikolon, BOM, geschützte Felder, ein Tag pro Zeile', () => {

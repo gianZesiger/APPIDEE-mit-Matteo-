@@ -128,15 +128,13 @@ export function Patterns() {
   );
 }
 
-/** Meilensteine und Abzeichen. Jeder wird nur einmal gefeiert. */
+/** Meilensteine: Tage, Geld und «Verlangen überstanden». */
 export function Badges({ goals, saved }: { goals: { best: number; hasMoney: boolean }[]; saved: number }) {
   const cravings = useStore((s) => s.cravings.length);
-  const trainings = useStore((s) => s.workouts.filter((w) => !w.rest).length);
   const list = badgeList({
     bestDays: Math.max(0, ...goals.map((g) => g.best)),
     saved,
     cravings,
-    trainings,
     hasMoney: goals.some((g) => g.hasMoney),
   });
   return (
@@ -149,7 +147,7 @@ export function Badges({ goals, saved }: { goals: { best: number; hasMoney: bool
         {list.map((b) => (
           <li key={b.key} className={`badge ${b.kind} ${b.reached ? 'on' : ''}`}>
             <span className="badge-ico" aria-hidden="true">
-              {b.kind === 'days' ? '🌊' : b.kind === 'money' ? '🪙' : b.kind === 'craving' ? '🌿' : '👟'}
+              {b.kind === 'days' ? '🌊' : b.kind === 'money' ? '🪙' : '🌿'}
             </span>
             <span className="badge-label">{badgeLabel(b)}</span>
             {!b.reached && <span className="sr-only">, {app.badges.locked}</span>}

@@ -1,21 +1,34 @@
 export type Mode = 'quit' | 'reduce';
 
+/**
+ * Menge und Preis ab einem Kalendertag. Eine Änderung gilt ab heute, die Vergangenheit bleibt.
+ * Die erste Rate beginnt am Starttag.
+ */
+export interface Rate {
+  validFrom: string; // YYYY-MM-DD
+  perDay: number; // normale Menge pro Tag (Basis)
+  price: number; // CHF pro Einheit
+}
+
 export interface Goal {
   id: string;
   templateKey: string;
   name: string;
   emoji: string;
-  unit: string; // Einzahl/Mehrzahl einfach: "Zigaretten"
-  perDay: number; // normale Menge pro Tag vor dem Start
-  price: number; // CHF pro Einheit
+  unit: string; // Mehrzahl: "Zigaretten", "Tassen"
+  /** Einzahl für «+1 Tasse». Fehlt sie, wird die Mehrzahl genommen. */
+  unitOne?: string;
+  /** Verlauf von Menge und Preis, nach validFrom sortiert, mindestens ein Eintrag */
+  rates: Rate[];
   sugarG?: number; // pro Einheit
   caffeineMg?: number; // pro Einheit
   mode: Mode;
   startAt: string; // ISO
   // Reduktionsplan
-  targetPerDay?: number; // Ziel am Ende (meist 0)
+  targetPerDay?: number; // Ziel am Ende, frei wählbar (z. B. 1 statt 0)
   planWeeks?: number;
-  planExtraWeeks?: number; // "Stufe verlängern"
+  /** Tage, an denen «Stufe verlängern» gedrückt wurde. Jeder hält die laufende Stufe 7 Tage länger. */
+  planExtensions?: string[];
   why?: string;
   /** Challenge von einem Link (#c=mate-14): so viele Tage */
   challengeDays?: number;
@@ -34,20 +47,20 @@ export interface UseEvent {
   updatedAt: string;
 }
 
+/** Check-in: einmal pro Tag (nicht pro Gewohnheit), änderbar. */
 export interface CheckIn {
   id: string;
-  goalId: string;
   day: string; // YYYY-MM-DD
   mood: 1 | 2 | 3;
   /** Kurz-Tagebuch, privat, nie auf Teilen-Karten */
   note?: string;
 }
 
-/** «Wie stark ist das Verlangen jetzt?» nach dem Kurz-Bewegen. Privat, 1 = kaum, 5 = sehr stark. */
+/** «Verlangen überstanden», z. B. nach dem Kurz-Bewegen. Privat. Stärke 1 = kaum, 5 = sehr stark, falls eingeschätzt. */
 export interface CravingEntry {
   id: string;
   at: string; // ISO
-  level: number;
+  level?: number;
 }
 
 export interface SavingsGoal {

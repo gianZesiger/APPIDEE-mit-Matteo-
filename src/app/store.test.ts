@@ -4,6 +4,8 @@ import { get, createStore } from 'idb-keyval';
 import { STORAGE_KEY, useStore } from './store';
 import { migratePersisted, PERSIST_VERSION } from '../domain/persist';
 import { validateImport } from '../domain/backup';
+import { addDays, dayKey } from '../domain/time';
+import { goalSummary } from '../domain/stats';
 
 const idb = createStore('weniger', 'daten');
 const saved = async () => {
@@ -12,16 +14,20 @@ const saved = async () => {
 };
 const tick = () => new Promise((r) => setTimeout(r, 20));
 
-const goal = (name = 'Mate') => ({
-  templateKey: 'mate',
-  name,
-  emoji: '🧉',
-  unit: 'Mate',
-  perDay: 1,
-  price: 1.9,
-  mode: 'quit' as const,
-  startAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-});
+const goal = (name = 'Mate', mode: 'quit' | 'reduce' = 'quit') => {
+  const start = new Date(Date.now() - 3 * 86_400_000);
+  return {
+    templateKey: 'mate',
+    name,
+    emoji: '🧉',
+    unit: 'Mate',
+    rates: [{ validFrom: dayKey(start), perDay: 2, price: 1.9 }],
+    mode,
+    targetPerDay: 0,
+    planWeeks: 4,
+    startAt: start.toISOString(),
+  };
+};
 
 beforeEach(async () => {
   await useStore.persist.rehydrate();
@@ -73,14 +79,13 @@ describe('Beispiel überschreibt nie eigene Daten', () => {
 });
 
 describe('Gewohnheit löschen', () => {
-  it('entfernt Einträge, Check-ins und Meilensteine der Gewohnheit, andere bleiben', () => {
+  it('entfernt Einträge und Meilensteine der Gewohnheit, andere bleiben; der Check-in gilt für den Tag', () => {
     const a = useStore.getState().addGoal(goal('A'));
     const b = useStore.getState().addGoal(goal('B'));
     const st = useStore.getState();
     st.addEvent({ goalId: a, at: new Date().toISOString(), units: 1, kind: 'slip' });
     st.addEvent({ goalId: b, at: new Date().toISOString(), units: 1, kind: 'slip' });
-    st.checkIn(a, 2);
-    st.checkIn(b, 3);
+    st.checkIn(2);
     st.markMilestones(a, ['t1']);
     st.markMilestones(b, ['t1']);
     useStore.getState().setActive(a);
@@ -88,7 +93,7 @@ describe('Gewohnheit löschen', () => {
     const s = useStore.getState();
     expect(s.goals.map((g) => g.id)).toEqual([b]);
     expect(s.events.every((e) => e.goalId === b)).toBe(true);
-    expect(s.checkins.every((c) => c.goalId === b)).toBe(true);
+    expect(s.checkins).toHaveLength(1);
     expect(s.seenMilestones[a]).toBeUndefined();
     expect(s.seenMilestones[b]).toEqual(['t1']);
     expect(s.activeGoalId).toBe(b);
@@ -111,28 +116,30 @@ describe('Migration je Version', () => {
     const v2 = { ...base, cravings: [], sportGoalMin: 180, reduceEffects: true, seenMilestones: { g1: ['t3600000@start', 't604800000@start', 'm50', 'm1000'] } };
     const m = migratePersisted(v2, 2);
     expect(m).toMatchObject({ sportGoalMin: 180, fxLevel: 'tief', plans: [], weeklyReview: true });
-    expect((m.seenMilestones as Record<string, string[]>).g1.sort()).toEqual(['d1@start', 'd7@start', 'm50']);
+    expect((m.seenMilestones as Record<string, string[]>).g1.sort()).toEqual(['d1', 'd7', 'm50']);
   });
   it('Version 3: Schalter «Effekte reduzieren» wird zur Effektstufe', () => {
     expect(migratePersisted({ ...base, reduceEffects: true }, 3).fxLevel).toBe('tief');
     expect(migratePersisted({ ...base, reduceEffects: false }, 3).fxLevel).toBe('auto');
   });
-  it('Version 4 (aktuell) bleibt unverändert', () => {
-    const v4 = { ...base, cravings: [], plans: [{ id: 'p', when: 'Wenn', then: 'dann' }], weeklyReview: false, reviewSeen: '2026-10-19', fxLevel: 'mittel', seenMilestones: { g1: ['d1@start'] } };
-    expect(migratePersisted(v4, 4)).toMatchObject(v4);
-    expect(PERSIST_VERSION).toBe(4);
+  it('Version 5 (aktuell) bleibt unverändert', () => {
+    const v5 = { ...base, cravings: [], plans: [{ id: 'p', when: 'Wenn', then: 'dann' }], weeklyReview: false, reviewSeen: '2026-10-19', fxLevel: 'mittel', seenMilestones: { g1: ['d1'] } };
+    expect(migratePersisted(v5, 5)).toMatchObject(v5);
+    expect(PERSIST_VERSION).toBe(5);
   });
 });
 
 describe('Tagebuch und Pläne', () => {
-  it('Notiz gehört zum heutigen Check-in und bleibt beim Wechsel der Stimmung', () => {
-    const a = useStore.getState().addGoal(goal());
-    useStore.getState().checkIn(a, 2);
-    useStore.getState().setNote(a, '  Spaziergang half.  ');
-    useStore.getState().checkIn(a, 3);
-    const c = useStore.getState().checkins.find((x) => x.goalId === a);
-    expect(c?.mood).toBe(3);
-    expect(c?.note).toBe('Spaziergang half.');
+  it('Check-in einmal pro Tag, änderbar; die Notiz bleibt beim Wechsel der Stimmung', () => {
+    useStore.getState().addGoal(goal());
+    useStore.getState().addGoal(goal('Kaffee'));
+    useStore.getState().checkIn(2);
+    useStore.getState().setNote('  Spaziergang half.  ');
+    useStore.getState().checkIn(3);
+    const list = useStore.getState().checkins;
+    expect(list).toHaveLength(1);
+    expect(list[0].mood).toBe(3);
+    expect(list[0].note).toBe('Spaziergang half.');
   });
   it('Pläne werden gekürzt gespeichert und gelöscht', () => {
     useStore.getState().addPlan('Wenn ich Stress habe', 'x'.repeat(300));
@@ -147,8 +154,8 @@ describe('Import mit zod', () => {
   it('verwirft zu lange Texte', () => {
     const json = JSON.stringify({
       goals: [
-        { id: 'g1', name: 'x'.repeat(61), unit: 'Mal', perDay: 1, price: 1, mode: 'quit', startAt: new Date().toISOString() },
-        { id: 'g2', name: 'Kaffee', unit: 'Tassen', perDay: 3, price: 1.2, mode: 'reduce', startAt: new Date().toISOString(), why: 'w'.repeat(500) },
+        { id: 'g1', name: 'x'.repeat(61), unit: 'Mal', perDay: 1, price: 1, mode: 'quit', startAt: new Date(Date.now() - 3_600_000).toISOString() },
+        { id: 'g2', name: 'Kaffee', unit: 'Tassen', perDay: 3, price: 1.2, mode: 'reduce', startAt: new Date(Date.now() - 3_600_000).toISOString(), why: 'w'.repeat(500) },
       ],
     });
     const r = validateImport(json);
@@ -157,5 +164,54 @@ describe('Import mit zod', () => {
       expect(r.data.goals.map((g) => g.id)).toEqual(['g2']);
       expect(r.data.goals[0].why).toBeUndefined();
     }
+  });
+});
+
+describe('Nachtragen, Korrigieren und Rückgängig', () => {
+  it('einen Tag im Verlauf korrigieren ersetzt alle Einträge dieses Tages', () => {
+    const id = useStore.getState().addGoal(goal('Kaffee', 'reduce'));
+    const yesterday = addDays(dayKey(new Date()), -1);
+    const st = useStore.getState();
+    st.setDayUnits(id, yesterday, 3);
+    st.setDayUnits(id, yesterday, 1);
+    const evs = useStore.getState().events.filter((e) => e.goalId === id);
+    expect(evs).toHaveLength(1);
+    expect(evs[0]).toMatchObject({ units: 1, kind: 'log' });
+    expect(dayKey(new Date(evs[0].at))).toBe(yesterday);
+    useStore.getState().setDayUnits(id, yesterday, 0);
+    expect(useStore.getState().events.filter((e) => e.goalId === id)).toHaveLength(0);
+  });
+
+  it('«Rückgängig» nimmt nur den letzten Eintrag von heute, ältere Tage bleiben', () => {
+    const id = useStore.getState().addGoal(goal('Kaffee', 'reduce'));
+    const yesterday = addDays(dayKey(new Date()), -1);
+    useStore.getState().setDayUnits(id, yesterday, 2);
+    useStore.getState().undoLastEvent(id);
+    expect(useStore.getState().events).toHaveLength(1);
+    useStore.getState().addEvent({ goalId: id, at: new Date().toISOString(), units: 1, kind: 'log' });
+    useStore.getState().undoLastEvent(id);
+    expect(useStore.getState().events).toHaveLength(1);
+  });
+
+  it('Preis ab heute ändern lässt die Vergangenheit stehen', () => {
+    const id = useStore.getState().addGoal(goal());
+    const now = new Date();
+    const before = goalSummary(useStore.getState().goals[0], [], now).saved;
+    useStore.getState().changeGoalRate(id, { perDay: 2, price: 50 }, false);
+    const g = useStore.getState().goals[0];
+    expect(g.rates).toHaveLength(2);
+    expect(goalSummary(g, [], now).saved).toBeGreaterThan(before);
+    // Die Tage vor heute rechnen weiter mit CHF 1.90
+    const yesterdayEnd = new Date(new Date().setHours(0, 0, 0, 0));
+    expect(goalSummary(g, [], yesterdayEnd).saved).toBe(goalSummary({ ...g, rates: [g.rates[0]] }, [], yesterdayEnd).saved);
+  });
+
+  it('Ruhetag und Training am selben Tag schliessen sich aus', () => {
+    const day = dayKey(new Date());
+    const st = useStore.getState();
+    expect(st.addWorkout({ day, at: new Date().toISOString(), sport: 'andere', minutes: 0, rest: true })).toBe(true);
+    expect(useStore.getState().addWorkout({ day, at: new Date().toISOString(), sport: 'laufen', minutes: 30 })).toBe(true);
+    expect(useStore.getState().workouts.map((w) => w.sport)).toEqual(['laufen']);
+    expect(useStore.getState().addWorkout({ day, at: new Date().toISOString(), sport: 'andere', minutes: 0, rest: true })).toBe(false);
   });
 });

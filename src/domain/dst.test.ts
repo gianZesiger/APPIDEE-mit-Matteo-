@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats } from './stats';
+import { goalSummary } from './stats';
 import { sportStats, weekStart, weekStreak, type Workout } from './sport';
 import type { Goal, UseEvent } from './types';
 
 // Läuft mit TZ=Europe/Zurich (vite.config.ts). Winterzeit beginnt am 25.10.2026 um 03:00.
 
 const goal = (over: Partial<Goal> = {}): Goal => ({
-  id: 'g1', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', perDay: 1, price: 1.9, mode: 'quit',
+  id: 'g1', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', rates: [{ validFrom: '2026-10-24', perDay: 1, price: 1.9 }], mode: 'quit',
   startAt: new Date(2026, 9, 24, 8, 0).toISOString(), createdAt: '', updatedAt: '', ...over,
 });
 const slip = (at: Date, units = 1): UseEvent => ({ id: at.toISOString(), goalId: 'g1', at: at.toISOString(), units, kind: 'slip', updatedAt: '' });
@@ -21,18 +21,19 @@ describe('Zeitzone', () => {
 
 describe('Sommer-/Winterzeit 25.10.2026', () => {
   it('Kalendertage stimmen, die Ersparnis läuft nach echter Zeit', () => {
-    const s = computeStats(goal(), [], new Date(2026, 9, 26, 8, 0));
-    expect(s.totalDays).toBe(2);
-    expect(s.winDays).toBe(2);
-    expect(s.elapsedMs).toBe(49 * 3_600_000);
-    expect(s.saved).toBeCloseTo((49 / 24) * 1.9, 5);
+    const s = goalSummary(goal(), [], new Date(2026, 9, 26, 8, 0));
+    // 24.10. ab 08:00 (16 von 24 Stunden), 25.10. ganz (25 Stunden, zählt als 1 Tag), 26.10. bis 08:00 (8 von 24)
+    expect(s.totalDays).toBe(3);
+    expect(s.goodDays).toBe(3);
+    expect(s.saved).toBeCloseTo((16 / 24 + 1 + 8 / 24) * 1.9, 2);
   });
 
   it('Ausrutscher in der doppelten Stunde zählt zum 25.10.', () => {
     const at = new Date('2026-10-25T00:30:00Z'); // 02:30 Winterzeit, nach der Umstellung
-    const s = computeStats(goal(), [slip(at)], new Date(2026, 9, 27, 9, 0));
+    const s = goalSummary(goal(), [slip(at)], new Date(2026, 9, 27, 9, 0));
     expect(s.days.find((d) => d.day === '2026-10-25')?.win).toBe(false);
-    expect(s.winDays).toBe(2);
+    expect(s.goodDays).toBe(3);
+    expect(s.streak).toBe(2);
   });
 
   it('Sport-Woche bleibt Montag bis Sonntag', () => {

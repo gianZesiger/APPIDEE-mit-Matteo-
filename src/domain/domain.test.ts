@@ -1,24 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, yearly } from './stats';
+import { goalSummary, yearly } from './stats';
 import { planSteps, limitForDay } from './reduction';
 import { addDays, daysBetween } from './time';
 import { chf } from './format';
 import type { Goal, UseEvent } from './types';
 
-const base = (over: Partial<Goal> = {}): Goal => ({
-  id: 'g1',
-  templateKey: 'zig',
-  name: 'Zigaretten',
-  emoji: '🚬',
-  unit: 'Zigaretten',
-  perDay: 10,
-  price: 0.45,
-  mode: 'quit',
-  startAt: new Date(2026, 9, 20, 8, 0).toISOString(),
-  createdAt: '',
-  updatedAt: '',
-  ...over,
-});
+const base = (over: Partial<Goal> & { perDay?: number; price?: number } = {}): Goal => {
+  const { perDay = 10, price = 0.45, ...rest } = over;
+  const startAt = rest.startAt ?? new Date(2026, 9, 20, 8, 0).toISOString();
+  const d = new Date(startAt);
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return {
+    id: 'g1',
+    templateKey: 'zig',
+    name: 'Zigaretten',
+    emoji: '🚬',
+    unit: 'Zigaretten',
+    rates: [{ validFrom: day, perDay, price }],
+    mode: 'quit',
+    startAt,
+    createdAt: '',
+    updatedAt: '',
+    ...rest,
+  };
+};
 
 const slip = (at: Date, units = 1): UseEvent => ({ id: Math.random().toString(), goalId: 'g1', at: at.toISOString(), units, kind: 'slip', updatedAt: '' });
 
@@ -31,40 +36,41 @@ describe('Zeit', () => {
 });
 
 describe('Statistik Aufhören', () => {
-  it('zeigt am Starttag keine reinen Nullen beim Geld', () => {
+  it('am Starttag: heute ist schon ein guter Tag, Geld läuft nach echter Zeit', () => {
     const g = base({ startAt: new Date(2026, 9, 23, 8, 0).toISOString() });
-    const s = computeStats(g, [], new Date(2026, 9, 23, 20, 0));
-    expect(s.winDays).toBe(0);
-    expect(s.saved).toBeCloseTo(10 * 0.45 * 0.5, 5);
-    expect(s.cleanMs).toBe(12 * 3_600_000);
+    const s = goalSummary(g, [], new Date(2026, 9, 23, 20, 0));
+    expect(s.goodDays).toBe(1);
+    expect(s.streak).toBe(1);
+    expect(s.saved).toBeCloseTo(10 * 0.45 * 0.5, 2);
+    expect(s.cleanFrom).toBe(new Date(2026, 9, 23, 8, 0).getTime());
   });
 
-  it('Gewinn-Tage bleiben nach einem Ausrutscher erhalten', () => {
+  it('gute Tage bleiben nach einem Ausrutscher erhalten', () => {
     const g = base();
     const events = [slip(new Date(2026, 9, 22, 14, 0)), slip(new Date(2026, 9, 22, 18, 0))];
-    const s = computeStats(g, events, new Date(2026, 9, 25, 9, 0));
-    // Tage 20,21,22,23,24 abgeschlossen; 22 ist kein Gewinn-Tag
-    expect(s.totalDays).toBe(5);
-    expect(s.winDays).toBe(4);
-    expect(s.streak).toBe(2);
-    expect(s.bestStreak).toBe(2);
-    expect(s.cleanMs).toBe(new Date(2026, 9, 25, 9).getTime() - new Date(2026, 9, 22, 18).getTime());
+    const s = goalSummary(g, events, new Date(2026, 9, 25, 9, 0));
+    // Tage 20 bis 25 (heute inklusive); 22 ist kein guter Tag
+    expect(s.totalDays).toBe(6);
+    expect(s.goodDays).toBe(5);
+    expect(s.streak).toBe(3);
+    expect(s.bestStreak).toBe(3);
+    expect(s.cleanFrom).toBe(new Date(2026, 9, 22, 18).getTime());
   });
 
   it('Ersparnis sinkt nur um den tatsächlichen Konsum', () => {
     const g = base();
     const now = new Date(2026, 9, 21, 8, 0); // genau 1 Tag
-    const without = computeStats(g, [], now);
-    const withSlip = computeStats(g, [slip(new Date(2026, 9, 20, 12), 3)], now);
-    expect(without.saved).toBeCloseTo(4.5, 5);
-    expect(withSlip.saved).toBeCloseTo(4.5 - 3 * 0.45, 5);
+    const without = goalSummary(g, [], now);
+    const withSlip = goalSummary(g, [slip(new Date(2026, 9, 20, 12), 3)], now);
+    expect(without.saved).toBeCloseTo(4.5, 2);
+    expect(withSlip.saved).toBeCloseTo(4.5 - 3 * 0.45, 2);
   });
 
   it('Start in der Zukunft gibt 0', () => {
     const g = base({ startAt: new Date(2026, 9, 30).toISOString() });
-    const s = computeStats(g, [], new Date(2026, 9, 25));
+    const s = goalSummary(g, [], new Date(2026, 9, 25));
     expect(s.saved).toBe(0);
-    expect(s.winDays).toBe(0);
+    expect(s.goodDays).toBe(0);
   });
 
   it('Jahresprojektion', () => {
@@ -76,36 +82,38 @@ describe('Reduktion', () => {
   it('lineare Wochenstufen bis 0', () => {
     expect(planSteps(20, 0, 4)).toEqual([15, 10, 5, 0]);
   });
-  it('Bruchzahlen bleiben in Stufen erhalten', () => {
-    expect(planSteps(0.5, 0, 4, 0.5)).toEqual([0.5, 0.5, 0.5, 0]);
-    expect(planSteps(3, 0, 4)).toEqual([2, 2, 1, 0]);
+  it('ohne doppelte Stufen: der Plan wird kürzer', () => {
+    expect(planSteps(0.5, 0, 4, 0.5)).toEqual([0]);
+    expect(planSteps(3, 0, 4)).toEqual([2, 1, 0]);
   });
-  it('Tag unter dem Limit ist ein Gewinn-Tag', () => {
+  it('Tag im Plan ist ein guter Tag, heute zählt mit', () => {
     const g = base({ mode: 'reduce', perDay: 20, targetPerDay: 0, planWeeks: 4 });
     expect(limitForDay(g, '2026-10-20')).toBe(15);
     expect(limitForDay(g, '2026-10-27')).toBe(10);
     const log = (d: Date, u: number): UseEvent => ({ id: Math.random().toString(), goalId: 'g1', at: d.toISOString(), units: u, kind: 'log', updatedAt: '' });
-    const s = computeStats(g, [log(new Date(2026, 9, 20, 12), 14), log(new Date(2026, 9, 21, 12), 16)], new Date(2026, 9, 22, 12));
-    expect(s.winDays).toBe(1);
-    expect(s.totalDays).toBe(2);
+    const s = goalSummary(g, [log(new Date(2026, 9, 20, 12), 14), log(new Date(2026, 9, 21, 12), 16)], new Date(2026, 9, 22, 12));
+    expect(s.goodDays).toBe(2);
+    expect(s.totalDays).toBe(3);
+    expect(s.streak).toBe(1);
   });
-  it('Stufe verlängern verschiebt den Plan', () => {
-    const g = base({ mode: 'reduce', perDay: 20, targetPerDay: 0, planWeeks: 4, planExtraWeeks: 1 });
+  it('Stufe verlängern hält die Stufe länger', () => {
+    const g = base({ mode: 'reduce', perDay: 20, targetPerDay: 0, planWeeks: 4, planExtensions: ['2026-10-20'] });
     expect(limitForDay(g, '2026-10-27')).toBe(15);
+    expect(limitForDay(g, '2026-11-03')).toBe(10);
   });
 });
 
 describe('Serie bei Ausrutscher heute', () => {
-  it('Serie fällt auf 0, Gewinn-Tage bleiben', () => {
+  it('Serie fällt auf 0, gute Tage bleiben', () => {
     const g = base();
-    const s = computeStats(g, [slip(new Date(2026, 9, 25, 7, 0))], new Date(2026, 9, 25, 9, 0));
+    const s = goalSummary(g, [slip(new Date(2026, 9, 25, 7, 0))], new Date(2026, 9, 25, 9, 0));
     expect(s.streak).toBe(0);
-    expect(s.winDays).toBe(5);
+    expect(s.goodDays).toBe(5);
   });
   it('Ereignis vor dem Start zählt nicht', () => {
     const g = base({ startAt: new Date(2026, 9, 20, 12, 0).toISOString() });
-    const s = computeStats(g, [slip(new Date(2026, 9, 20, 9, 0))], new Date(2026, 9, 22, 9, 0));
-    expect(s.winDays).toBe(2);
+    const s = goalSummary(g, [slip(new Date(2026, 9, 20, 9, 0))], new Date(2026, 9, 22, 9, 0));
+    expect(s.goodDays).toBe(3);
   });
 });
 

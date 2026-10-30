@@ -38,8 +38,7 @@ export interface Workout {
   distanceKm?: number;
   rpe?: number; // Anstrengung 1-10
   feeling?: 1 | 2 | 3 | 4; // danach: leer, okay, gut, stark
-  rest?: boolean; // bewusster Ruhetag, zählt positiv
-  trigger?: 'craving';
+  rest?: boolean; // bewusster Ruhetag, zählt positiv. Schliesst Training am selben Tag aus.
   note?: string;
 }
 
@@ -119,13 +118,19 @@ export function isMonday(day: string): boolean {
   return new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay() === 1;
 }
 
+/** Gibt es diesen Eintrag an diesem Tag schon (gleiche Sportart und Dauer)? */
+export function isDuplicate(workouts: Workout[], w: Pick<Workout, 'day' | 'sport' | 'minutes' | 'rest'>): boolean {
+  return !w.rest && workouts.some((x) => !x.rest && x.day === w.day && x.sport === w.sport && x.minutes === w.minutes);
+}
+
 export interface SportStats {
   weekMinutes: number;
   weekSessions: number;
   weekActiveDays: number;
   weekRestDays: number;
   todayMinutes: number;
-  cravingMoves: number;
+  /** «Verlangen überstanden» seit dem frühesten Start */
+  cravingsSinceQuit: number;
   weekProgress: number;
   weekStreak: number;
   totalMinutes: number;
@@ -142,7 +147,7 @@ export interface SportStats {
   lastWeekReached: boolean;
 }
 
-export function sportStats(allEntries: Workout[], now: Date, goalMin: number, quitStart?: string): SportStats {
+export function sportStats(allEntries: Workout[], now: Date, goalMin: number, quitStart?: string, cravings: { at: string }[] = []): SportStats {
   const today = dayKey(now);
   const workouts = allEntries.filter((w) => !w.rest);
   const last8 = weekSums(allEntries, today, 8, goalMin);
@@ -159,7 +164,7 @@ export function sportStats(allEntries: Workout[], now: Date, goalMin: number, qu
     weekActiveDays: cur.activeDays,
     weekRestDays: cur.restDays,
     todayMinutes: workouts.filter((w) => w.day === today).reduce((x, w) => x + w.minutes, 0),
-    cravingMoves: workouts.filter((w) => w.trigger === 'craving').length,
+    cravingsSinceQuit: quitStart ? cravings.filter((c) => dayKey(new Date(c.at)) >= quitStart).length : 0,
     weekProgress: goalMin > 0 ? cur.minutes / goalMin : 0,
     weekStreak: weekStreak(workouts, today, goalMin),
     totalMinutes: workouts.reduce((s, w) => s + w.minutes, 0),

@@ -1,52 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { badgeList, detectBadges, detectMilestones, migrateSeenKeys, nextDayMilestone } from './milestones';
+import { badgeList, detectBadges } from './milestones';
 import { challengeHash, dayPart, lastWeekReview, parseChallenge, patterns, shareContent, suggestTriggers } from './insights';
 import type { Goal, UseEvent } from './types';
 import type { Workout } from './sport';
 
-const D = 86_400_000;
-
-describe('Meilensteine 1, 7, 30, 100, 365 Tage und CHF 10, 50, 100, 500', () => {
-  it('feiert den höchsten neuen Tag, markiert alles, nur einmal', () => {
-    const r = detectMilestones(40 * D, 120, [], 'start', true);
-    expect(r.celebrate).toEqual({ kind: 'days', n: 30 });
-    expect(r.newKeys).toEqual(['d1@start', 'd7@start', 'd30@start', 'm10', 'm50', 'm100']);
-    const again = detectMilestones(40 * D, 120, r.newKeys, 'start', true);
-    expect(again.newKeys).toHaveLength(0);
-    expect(again.celebrate).toBeNull();
-  });
-  it('Geld wird gefeiert, wenn kein neuer Tag dazukommt; ohne Preis nie', () => {
-    expect(detectMilestones(2 * D, 12, ['d1@s'], 's', true).celebrate).toEqual({ kind: 'money', n: 10 });
-    expect(detectMilestones(2 * D, 12, ['d1@s'], 's', false).newKeys).toEqual([]);
-  });
-  it('nach einem Ausrutscher beginnt eine neue Serie, Geld bleibt gefeiert', () => {
-    const first = detectMilestones(8 * D, 60, [], 'start', true);
-    const after = detectMilestones(1.5 * D, 61, first.newKeys, 'slip-1', true);
-    expect(after.newKeys).toEqual(['d1@slip-1']);
-    expect(after.celebrate).toEqual({ kind: 'days', n: 1 });
-  });
-  it('Fortschritt zum nächsten Meilenstein', () => {
-    expect(nextDayMilestone(0.5 * D)).toEqual({ prev: 0, next: 1, progress: 0.5 });
-    expect(nextDayMilestone(4 * D).next).toBe(7);
-    expect(nextDayMilestone(400 * D)).toEqual({ prev: 365, next: null, progress: 1 });
-  });
-  it('alte Schlüssel werden umgerechnet, damit nichts doppelt gefeiert wird', () => {
-    const old = ['t3600000@s1', `t${30 * D}@s1`, 'm100', 'm1000'];
-    expect(migrateSeenKeys(old).sort()).toEqual(['d1@s1', 'd30@s1', 'd7@s1', 'm100']);
-  });
-});
-
-describe('Abzeichen: Verlangen überstanden und Trainings', () => {
-  it('zählt nur Anzahl, nie Minuten', () => {
-    const r = detectBadges(1, 10, []);
-    expect(r.newKeys).toEqual(['c1', 'w1', 'w10']);
+describe('Abzeichen: Verlangen überstanden', () => {
+  it('einmal feiern, dann merken', () => {
+    const r = detectBadges(1, []);
+    expect(r.newKeys).toEqual(['c1']);
     expect(r.celebrate).toEqual({ kind: 'craving', n: 1 });
-    expect(detectBadges(1, 10, r.newKeys).celebrate).toBeNull();
+    expect(detectBadges(3, r.newKeys).celebrate).toBeNull();
   });
-  it('Liste zum Anzeigen', () => {
-    const list = badgeList({ bestDays: 8, saved: 60, cravings: 0, trainings: 3, hasMoney: true });
-    expect(list.filter((b) => b.reached).map((b) => b.key)).toEqual(['d1', 'd7', 'm10', 'm50', 'w1']);
-    expect(badgeList({ bestDays: 0, saved: 0, cravings: 0, trainings: 0, hasMoney: false }).some((b) => b.kind === 'money')).toBe(false);
+  it('Liste zum Anzeigen: Tage, Geld, Verlangen', () => {
+    const list = badgeList({ bestDays: 8, saved: 60, cravings: 0, hasMoney: true });
+    expect(list.filter((b) => b.reached).map((b) => b.key)).toEqual(['d1', 'd7', 'm10', 'm50']);
+    expect(badgeList({ bestDays: 0, saved: 0, cravings: 0, hasMoney: false }).some((b) => b.kind === 'money')).toBe(false);
   });
 });
 
@@ -70,7 +38,7 @@ describe('Muster aus Auslösern', () => {
 describe('Wochenrückblick', () => {
   it('rechnet die letzte Kalenderwoche: gute Tage, gespart, Trainingsminuten', () => {
     const g: Goal = {
-      id: 'g1', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', perDay: 1, price: 2, mode: 'quit',
+      id: 'g1', templateKey: 'mate', name: 'Mate', emoji: '🧉', unit: 'Mate', rates: [{ validFrom: '2026-10-01', perDay: 1, price: 2 }], mode: 'quit',
       startAt: new Date(2026, 9, 1, 8).toISOString(), createdAt: '', updatedAt: '',
     };
     const ws: Workout[] = [
@@ -79,10 +47,9 @@ describe('Wochenrückblick', () => {
     ];
     const r = lastWeekReview([g], [slip(new Date(2026, 9, 21, 12))], ws, new Date(2026, 9, 26, 9));
     expect(r?.week).toBe('2026-10-19');
-    expect(r?.goodDays).toBe(6);
-    expect(r?.daysTracked).toBe(7);
-    // 25.10. hat eine Stunde mehr (Winterzeit): gespart wird nach echter Zeit
-    expect(r?.saved).toBeCloseTo(7 * 2 + 2 / 24 - 2, 5);
+    expect(r?.perGoal).toEqual([{ goalId: 'g1', name: 'Mate', mode: 'quit', good: 6, of: 7 }]);
+    // Jeder Kalendertag zählt ganz, auch der 25-Stunden-Tag der Winterzeit
+    expect(r?.saved).toBe(7 * 2 - 2);
     expect(r?.trainingMinutes).toBe(40);
     expect(lastWeekReview([], [], [], new Date())).toBeNull();
   });

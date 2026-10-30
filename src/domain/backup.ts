@@ -1,6 +1,10 @@
 import { z } from 'zod';
-import type { Goal, UseEvent } from './types';
+import type { Goal, Rate, UseEvent } from './types';
 import { clampSportGoal, MAX_IMPORT_BYTES, type BackupData } from './limits';
+import { mergeCheckins, migrateGoal, splitCravingMoves } from './persist';
+import { GLOBAL, migrateSeenKeys } from './milestones';
+import { normalizeRates } from './rates';
+import { goalSummary } from './stats';
 
 export { clampSportGoal, MAX_IMPORT_BYTES, serializeBackup, SPORT_GOAL_MAX, SPORT_GOAL_MIN, type BackupData } from './limits';
 import { SPORTS, type Workout } from './sport';
@@ -39,6 +43,7 @@ function schemas(now: Date, goalIds: Set<string>) {
     return d >= -1 && d <= 5 * 365;
   });
   const ownGoal = id.refine((g) => goalIds.has(g));
+  const rate = z.object({ validFrom: day, perDay: z.number().finite().min(0).max(500), price: z.number().finite().min(0).max(500) });
 
   const goal = z
     .object({
@@ -47,15 +52,15 @@ function schemas(now: Date, goalIds: Set<string>) {
       name: text(60),
       emoji: optText(16),
       unit: optText(30),
-      perDay: z.number().finite().min(0).max(500),
-      price: z.number().finite().min(0).max(500),
+      unitOne: optText(30),
+      rates: z.array(rate).min(1).max(500),
       sugarG: optNum(0, 1000),
       caffeineMg: optNum(0, 2000),
       mode: z.enum(['quit', 'reduce']),
       startAt: iso,
       targetPerDay: optNum(0, 500),
       planWeeks: optInt(1, 52),
-      planExtraWeeks: optInt(0, 52),
+      planExtensions: z.array(day).max(104).optional().catch(undefined),
       why: optText(200),
       challengeDays: optInt(1, 365),
       createdAt: optIso,
@@ -67,7 +72,8 @@ function schemas(now: Date, goalIds: Set<string>) {
         templateKey: g.templateKey ?? 'eigene',
         emoji: g.emoji ?? '✨',
         unit: g.unit ?? 'Mal',
-        targetPerDay: g.targetPerDay !== undefined && g.targetPerDay <= g.perDay ? g.targetPerDay : undefined,
+        rates: normalizeRates(g.rates as Rate[], dayKey(new Date(g.startAt))),
+        targetPerDay: g.targetPerDay !== undefined && g.targetPerDay < g.rates[0].perDay ? g.targetPerDay : undefined,
         createdAt: g.createdAt ?? g.startAt,
         updatedAt: g.updatedAt ?? new Date().toISOString(),
       }),
@@ -77,7 +83,7 @@ function schemas(now: Date, goalIds: Set<string>) {
     .object({ id, goalId: ownGoal, at: iso, units: z.number().finite().min(0).max(500), kind: z.enum(['slip', 'log']), trigger: optText(40), updatedAt: optIso })
     .transform((e): UseEvent => ({ ...e, updatedAt: e.updatedAt ?? e.at }));
 
-  const checkin = z.object({ id, goalId: ownGoal, day, mood: z.union([z.literal(1), z.literal(2), z.literal(3)]), note: optText(200) });
+  const checkin = z.object({ id, day, mood: z.union([z.literal(1), z.literal(2), z.literal(3)]), note: optText(200) });
 
   const saving = z.object({ id, name: text(60), amount: z.number().finite().min(1).max(1_000_000) });
 
@@ -92,7 +98,6 @@ function schemas(now: Date, goalIds: Set<string>) {
       distanceKm: optNum(0.01, 1000),
       rpe: optInt(1, 10),
       feeling: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional().catch(undefined),
-      trigger: z.literal('craving').optional().catch(undefined),
       note: optText(200),
     })
     .refine((w) => w.rest === true || w.minutes >= 1)
@@ -105,7 +110,7 @@ function schemas(now: Date, goalIds: Set<string>) {
       }),
     );
 
-  const craving = z.object({ id, at: iso, level: z.number().int().min(1).max(5) });
+  const craving = z.object({ id, at: iso, level: optInt(1, 5) });
 
   const plan = z.object({ id, when: text(60), then: text(120) });
 
@@ -142,17 +147,20 @@ export function validateImport(json: string, now = new Date()): ImportResult {
   const root = z.object({ goals: z.array(z.unknown()) }).passthrough().safeParse(d);
   if (!root.success) return { ok: false, error: E.foreign };
   const raw = root.data as Record<string, unknown>;
+  // Ältere Sicherungen (bis Version 4) wie gespeicherte Daten umrechnen
+  const moved = splitCravingMoves(arr(raw.workouts), arr(raw.cravings));
 
-  const goals = keep(raw.goals, schemas(now, new Set()).goal);
+  const goals = keep(arr(raw.goals).map(migrateGoal), schemas(now, new Set()).goal);
   if (goals.items.length === 0) return { ok: false, error: E.noHabit };
   const s = schemas(now, new Set(goals.items.map((g) => g.id)));
   const events = keep(raw.events, s.event);
-  const checkins = keep(raw.checkins, s.checkin);
+  const checkins = keep(mergeCheckins(arr(raw.checkins)), s.checkin);
   const savings = keep(raw.savings, s.saving);
-  const workouts = keep(raw.workouts, s.workout);
-  const cravings = keep(raw.cravings, s.craving);
+  const workouts = keep(moved.workouts, s.workout);
+  const cravings = keep(moved.cravings, s.craving);
   const plans = keep(raw.plans, s.plan);
   const dropped = [goals, events, checkins, savings, workouts, cravings, plans].reduce((n, x) => n + x.dropped, 0);
+  const settings = (typeof raw.settings === 'object' && raw.settings !== null ? raw.settings : {}) as Record<string, unknown>;
   return {
     ok: true,
     dropped,
@@ -164,7 +172,28 @@ export function validateImport(json: string, now = new Date()): ImportResult {
       workouts: workouts.items,
       cravings: cravings.items,
       plans: plans.items,
-      sportGoalMin: clampSportGoal(raw.sportGoalMin),
+      seenMilestones: seenFor(raw.seenMilestones, new Set([...goals.items.map((g) => g.id), GLOBAL])),
+      settings: {
+        sportGoalMin: clampSportGoal(settings.sportGoalMin ?? raw.sportGoalMin),
+        fxLevel: ['auto', 'hoch', 'mittel', 'tief'].includes(String(settings.fxLevel)) ? String(settings.fxLevel) : 'auto',
+        weeklyReview: settings.weeklyReview !== false,
+      },
     },
   };
+}
+
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+function seenFor(v: unknown, ids: Set<string>): Record<string, string[]> {
+  if (typeof v !== 'object' || v === null) return {};
+  return Object.fromEntries(
+    Object.entries(v as Record<string, unknown>)
+      .filter(([k]) => ids.has(k))
+      .map(([k, list]) => [k, migrateSeenKeys(arr(list).filter((x): x is string => typeof x === 'string'))]),
+  );
+}
+
+/** Vorschau vor dem Ersetzen: «2 Gewohnheiten, 42 gute Tage». */
+export function importSummary(data: BackupData, now = new Date()): { goals: number; goodDays: number } {
+  return { goals: data.goals.length, goodDays: data.goals.reduce((n, g) => n + goalSummary(g, data.events, now).goodDays, 0) };
 }

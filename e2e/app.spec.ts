@@ -120,7 +120,11 @@ test('Training eintragen, «Wie letztes Mal», Löschen mit Rückgängig, Reload
   // Die Meldung kann auch ein Abzeichen sein («Dein erstes Training …»)
   await expect(page.locator('.workout-row', { hasText: 'Schwimmen' })).toContainText('45 Minuten');
   await page.getByRole('button', { name: 'Training eintragen', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Training eintragen' }).getByRole('button', { name: /Wie letztes Mal/ }).click();
+  const again = page.getByRole('dialog', { name: 'Training eintragen' }).getByRole('button', { name: /Wie letztes Mal/ });
+  await again.click();
+  // Gleicher Eintrag am gleichen Tag: erst ein Hinweis, beim zweiten Tippen wird gespeichert
+  await expect(page.getByRole('dialog', { name: 'Training eintragen' }).getByRole('alert')).toContainText('gibt es an diesem Tag schon');
+  await again.click();
   await expect(page.locator('.workout-row', { hasText: 'Schwimmen' })).toHaveCount(2);
   await page.locator('.workout-row').first().getByRole('button', { name: /löschen/ }).click();
   await expect(page.locator('.workout-row', { hasText: 'Schwimmen' })).toHaveCount(1);
@@ -150,23 +154,25 @@ test('Kurz bewegen mit Timer und Verlangen-Frage', async ({ page }) => {
   await page.clock.runFor(200_000);
   await expect(page.getByText('Wie stark ist das Verlangen jetzt?')).toBeVisible();
   await page.getByRole('radio', { name: '2', exact: true }).click();
-  await page.getByRole('button', { name: 'Als Bewegung eintragen' }).click();
-  await expect(page.locator('.toast')).toContainText('Bewegung eingetragen');
+  await page.getByRole('button', { name: 'Fertig, Verlangen überstanden' }).click();
+  await expect(page.locator('.toast')).toContainText('Verlangen überstanden');
+  // Kurz bewegen zählt als «Verlangen überstanden», nicht als Training
   await tab(page, 'Sport');
-  await expect(page.locator('.workout-row').first()).toContainText('statt Verlangen');
+  await expect(page.locator('.workout-row', { hasText: 'Bewegung' })).toHaveCount(0);
 });
 
 test('Ausrutscher: Serie auf 0, gute Tage bleiben', async ({ page }) => {
   await page.goto('/app/?modus=beispiel');
-  const summary = page.getByText(/gute Tage insgesamt · Serie:/);
-  const before = (await summary.textContent())?.match(/^(\d+) gute Tage/)?.[1];
-  expect(before).toBeTruthy();
+  const summary = page.getByText(/gute Tage insgesamt · Serie/);
+  const before = Number((await summary.textContent())?.match(/^(\d+) gute Tage/)?.[1]);
+  expect(before).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Ausrutscher festhalten' }).click();
   const sheet = page.getByRole('dialog', { name: 'Ausrutscher festhalten' });
   await expect(sheet.getByText('Passiert. Und jetzt?')).toBeVisible();
   await sheet.getByRole('button', { name: /Weiter geht/ }).click();
-  await expect(summary).toContainText('Serie: 0 Tage');
-  await expect(summary).toContainText(`${before} gute Tage`);
+  await expect(summary).toContainText('Serie 0 Tage');
+  // Die abgeschlossenen guten Tage bleiben, nur heute zählt nicht mehr
+  await expect(summary).toContainText(`${before - 1} gute Tage`);
 });
 
 test('Ziele: mehrere Sparziele in Reihenfolge', async ({ page }) => {

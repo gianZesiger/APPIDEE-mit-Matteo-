@@ -3,8 +3,8 @@
 import type { CravingEntry, Goal, UseEvent } from './types';
 import type { Workout } from './sport';
 import { weekSums, weekStart } from './sport';
-import { computeStats } from './stats';
-import { addDays, dayKey, parseDayKey } from './time';
+import { dayStart, goalSummary, roundRappen, totalSaved } from './stats';
+import { addDays, dayKey } from './time';
 
 // ---------- Muster aus Ausrutschern und Verlangen ----------
 
@@ -64,15 +64,22 @@ export function suggestTriggers(p: Patterns, all: string[]): string[] {
 
 // ---------- Wochenrückblick ----------
 
+export interface GoalWeek {
+  goalId: string;
+  name: string;
+  mode: Goal['mode'];
+  good: number; // gute Tage bzw. Tage im Plan
+  of: number; // Tage dieser Woche seit dem Start
+}
+
 export interface WeekReview {
   week: string; // Montag der Woche
-  goodDays: number; // Tage, an denen alle laufenden Gewohnheiten gut waren
-  daysTracked: number;
+  perGoal: GoalWeek[];
   saved: number;
   trainingMinutes: number;
 }
 
-/** Rückblick auf die letzte abgeschlossene Kalenderwoche (Montag bis Sonntag). */
+/** Rückblick auf die letzte abgeschlossene Kalenderwoche (Montag bis Sonntag), klar pro Gewohnheit. */
 export function lastWeekReview(goals: Goal[], events: UseEvent[], workouts: Workout[], now: Date, sportGoal = 150): WeekReview | null {
   const today = dayKey(now);
   const mon = addDays(weekStart(today), -7);
@@ -80,26 +87,15 @@ export function lastWeekReview(goals: Goal[], events: UseEvent[], workouts: Work
   const started = goals.filter((g) => dayKey(new Date(g.startAt)) <= sun);
   if (started.length === 0) return null;
   // Ende der Woche: Montag 00:00 lokal
-  const p = parseDayKey(addDays(sun, 1));
-  const end = new Date(p.y, p.m - 1, p.d);
-  const q = parseDayKey(mon);
-  const start = new Date(q.y, q.m - 1, q.d);
-  let good = 0;
-  let tracked = 0;
-  let saved = 0;
-  const perGoal = started.map((g) => computeStats(g, events, end));
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(mon, i);
-    const rows = perGoal.map((s) => s.days.find((x) => x.day === d)).filter((x) => x !== undefined);
-    if (rows.length === 0) continue;
-    tracked++;
-    if (rows.every((r) => r.win)) good++;
-  }
-  started.forEach((g, i) => {
-    saved += perGoal[i].saved - computeStats(g, events, start).saved;
+  const end = dayStart(addDays(sun, 1));
+  const start = dayStart(mon);
+  const perGoal = started.map((g) => {
+    const rows = goalSummary(g, events, end).days.filter((x) => x.day >= mon && x.day <= sun);
+    return { goalId: g.id, name: g.name, mode: g.mode, good: rows.filter((r) => r.win).length, of: rows.length };
   });
+  const saved = totalSaved(started, events, end) - totalSaved(started, events, start);
   const minutes = weekSums(workouts, today, 2, sportGoal)[0].minutes;
-  return { week: mon, goodDays: good, daysTracked: tracked, saved: Math.max(0, saved), trainingMinutes: minutes };
+  return { week: mon, perGoal, saved: Math.max(0, roundRappen(saved)), trainingMinutes: minutes };
 }
 
 // ---------- Teilen-Karte ----------
